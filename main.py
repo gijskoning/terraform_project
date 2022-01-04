@@ -39,9 +39,9 @@ def keyboard_control(dt, goal):
 if __name__ == '__main__':
     l = ARMS_LENGTHS
 
-    start = np.array([0, 0.2])
+    robot_base = np.array([0, 0.2])
     model = robot_arm_3dof(l)
-    controller = Controller(kp=15,ki=0.1,kd=0.1)
+    controller = Controller(kp=15, ki=0.1, kd=0.1)
 
     t = 0.0  # time
     # pr = np.array((x / 10 + 0.0, y / 10 + 0.1))  # reference endpoint trajectory
@@ -50,9 +50,9 @@ if __name__ == '__main__':
     dq = np.array([0., 0., 0.])  # joint velocity
 
     state = []  # state vector
-    goal = start
+    goal = robot_base
 
-    display = Display(dt, ARMS_LENGTHS, start_pos=start)
+    display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
 
     while True:
         model.state(q, dq)
@@ -61,7 +61,7 @@ if __name__ == '__main__':
         # Render
         display.render(q, goal)
         # Control
-        local_goal = goal - start
+        local_goal = goal - robot_base
 
         # F_end can be replaced with RL action. array[2]
         F_end = controller.pid_control(model, local_goal, dt)
