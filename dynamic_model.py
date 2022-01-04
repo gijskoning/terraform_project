@@ -90,18 +90,27 @@ class Controller:
         self.Ki = ki
         self.Kd = kd
 
-    def control(self, model, goal, dt):
+    def pid_control(self, model, goal, dt):
         # KINEMATIC CONTROL
-        J2 = model.Jacobian2()
-        J_end = model.Jacobian4()
-        p2 = model.FK2()
         p_end = model.FK4()
         error = goal - p_end
-        # error2 = - p2
         d_p = p_end - self.last_p_end
+
+        # F_end can be replaced with a reinforcement learning action
+        F_end = self.Kp * error + self.Ki * self.se * dt - self.Kd * d_p / dt
+
+        self.se += error
+        self.last_p_end = p_end
+
+        return F_end
+
+    def control(self, model, goal, F_end):
+        # KINEMATIC CONTROL
+        J_end = model.Jacobian4()
+        p_end = model.FK4()
+        # error2 = - p2
         # d_p2 = p2 - self.last_p_2
 
-        F_end = self.Kp * error + self.Ki * self.se * dt - self.Kd * d_p / dt
         # F_2 = self.Kp * error2 + self.Ki * self.se * dt - self.Kd * d_p2 / dt
 
         def J_robust(_J):
@@ -109,17 +118,14 @@ class Controller:
             damp_identity = self.lambda_coeff * np.identity(len(_J))
             return _Jt @ np.linalg.inv(_J @ _Jt + damp_identity)
 
-        J_2_robust = J_robust(J2)
         J_end_robust = J_robust(J_end)
         # J_2_robust = J_2_robust
         # null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
         # null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
 
         dq = J_end_robust @ F_end  # + null_space_control
-        print("goal, p_end, F_end, dq",goal, p_end, F_end)
+        print("goal, p_end, F_end, dq", goal, p_end, F_end)
 
-        self.se += error
-        self.last_p_end = p_end
         p = p_end
         return p, dq
 

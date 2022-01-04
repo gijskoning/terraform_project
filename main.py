@@ -61,7 +61,12 @@ if __name__ == '__main__':
         # Render
         display.render(q, goal)
         # Control
-        p, dq = controller.control(model, goal - start, dt)
+        local_goal = goal - start
+
+        # F_end can be replaced with RL action. array[2]
+        F_end = controller.pid_control(model, local_goal, dt)
+
+        p, dq = controller.control(model, local_goal, F_end)
 
         q += dq * dt
         t += dt
