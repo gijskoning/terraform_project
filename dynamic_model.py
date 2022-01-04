@@ -1,15 +1,17 @@
 import numpy as np
 import math
+
 from numpy import sin, cos
 
 
-class robot_arm_2dof:
+class robot_arm_3dof:
+
     def __init__(self, l):
         self.l = l  # link length
 
-        self.q = np.array([0.0, 0.0])  # joint position
-        self.dq = np.array([0.0, 0.0])  # joint veloctiy
-        self.tau = np.array([0.0, 0.0])  # joint torque
+        self.q = np.array([0.0, 0.0, 0.0])  # joint position
+        self.dq = np.array([0.0, 0.0, 0.0])  # joint velocity
+        self.tau = np.array([0.0, 0.0, 0.0])  # joint torque
 
     # forward kinematics (until the second elbow, i.e., secondary endpoint)
     def FK2(self):
@@ -75,12 +77,14 @@ class robot_arm_2dof:
 
 class Controller:
 
-    def __init__(self, kp=1, ki=0, kd=0.1):
+    def __init__(self, kp=1, ki=0, kd=0):
+        self.lambda_coeff = 0.001
+
         self.i = 0  # loop counter
         self.se = 0.0  # integrated error
         self.state = []  # state vector
         self.last_p_end = np.array([0, 0])
-        self.last_p_2 = np.array([0, 0])
+        self.lastp_2 = np.array([0, 0])
         self.se = 0
         self.Kp = kp
         self.Ki = ki
@@ -93,25 +97,26 @@ class Controller:
         p2 = model.FK2()
         p_end = model.FK4()
         error = goal - p_end
-        error2 = - p2
+        # error2 = - p2
         d_p = p_end - self.last_p_end
-        d_p2 = p2 - self.last_p_2
+        # d_p2 = p2 - self.last_p_2
 
         F_end = self.Kp * error + self.Ki * self.se * dt - self.Kd * d_p / dt
-        F_2 = self.Kp * error2 + self.Ki * self.se * dt - self.Kd * d_p2 / dt
+        # F_2 = self.Kp * error2 + self.Ki * self.se * dt - self.Kd * d_p2 / dt
 
         def J_robust(_J):
             _Jt = _J.transpose()
-            lambda_coeff = 0.0001
-            damp_identity = lambda_coeff * np.identity(len(_J))
+            damp_identity = self.lambda_coeff * np.identity(len(_J))
             return _Jt @ np.linalg.inv(_J @ _Jt + damp_identity)
 
         J_2_robust = J_robust(J2)
         J_end_robust = J_robust(J_end)
-        J_2_robust = J_2_robust
-        null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
-        null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
-        dq = J_end_robust @ F_end + null_space_control
+        # J_2_robust = J_2_robust
+        # null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
+        # null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
+
+        dq = J_end_robust @ F_end  # + null_space_control
+        print("goal, p_end, F_end, dq",goal, p_end, F_end)
 
         self.se += error
         self.last_p_end = p_end
@@ -123,43 +128,5 @@ if __name__ == '__main__':
     from constants import ARMS_LENGTHS
 
     l = ARMS_LENGTHS
-    model = robot_arm_2dof(l)
+    model = robot_arm_3dof(l)
     controller = Controller()
-
-    # SIMULATION PARAMETERS
-    dt = 0.2  # integration step time
-    dts = dt * 1  # desired simulation step time (NOTE: it may not be achieved)
-    T = 3  # total simulation time
-
-    # ROBOT     PARAMETERS
-    x0 = 0.0  # base x position
-    y0 = 0.0  # base y position
-
-    # REFERENCE TRAJETORY
-    ts = T / dt  # trajectory size
-    xt = np.linspace(-2, 2, int(ts))
-    yt1 = np.sqrt(1 - (abs(xt) - 1) ** 2)
-    yt2 = -3 * np.sqrt(1 - (abs(xt) / 2) ** 0.5)
-
-    x = np.concatenate((xt, np.flip(xt, 0)), axis=0)
-    y = np.concatenate((yt1, np.flip(yt2, 0)), axis=0)
-
-    # PID CONTROLLER PARAMETERS
-    Kp = 15  # proportional gain
-    Ki = 0.3  # integral gain
-    Kd = 0.1  # derivative gain
-
-    t = 0.0  # time
-    pr = np.array((x / 10 + 0.0, y / 10 + 0.45))  # reference endpoint trajectory
-    q0 = model.IK2(pr[:, 0])  # initial configuration
-    q = np.array([np.pi, -np.pi, q0[0]])  # initial configuration
-    dq = np.array([0., 0., 0.])  # joint velocity
-    state = []  # state vector
-
-    for i in range(10):
-        goal = pr[:, i]
-        p, dq = controller.control(model, goal, dt)
-
-        # log states for analysis
-        state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], p[0], p[1]])
-    print(np.array(state))

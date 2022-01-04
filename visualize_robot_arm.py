@@ -37,190 +37,141 @@ import matplotlib.pyplot as plt
 import pygame
 from numpy import sin, cos
 
-from constants import ARMS_LENGTHS
-from dynamic_model import Controller, robot_arm_2dof
-
 '''SIMULATION'''
 
-# SIMULATION PARAMETERS
-dt = 0.01  # integration step time
-dts = dt * 1  # desired simulation step time (NOTE: it may not be achieved)
-T = 3  # total simulation time
 
-# ROBOT PARAMETERS
-x0 = 0.0  # base x position
-y0 = 0.0  # base y position
-l1,l2,l3 = ARMS_LENGTHS
-# l4 = 0.3  # link 4 length
-l = [l1, l2, l3]  # link length
+#
+# # REFERENCE TRAJETORY
+# ts = T / dt  # trajectory size
+# xt = np.linspace(-2, 2, int(ts))
+# yt1 = np.sqrt(1 - (abs(xt) - 1) ** 2)
+# yt2 = -3 * np.sqrt(1 - (abs(xt) / 2) ** 0.5)
+#
+# x = np.concatenate((xt, np.flip(xt, 0)), axis=0)
+# y = np.concatenate((yt1, np.flip(yt2, 0)), axis=0)
+#
+# pr = np.array((x / 10 + 0.0, y / 10 + 0.1))  # reference endpoint trajectory
 
-# REFERENCE TRAJETORY
-ts = T / dt  # trajectory size
-xt = np.linspace(-2, 2, int(ts))
-yt1 = np.sqrt(1 - (abs(xt) - 1) ** 2)
-yt2 = -3 * np.sqrt(1 - (abs(xt) / 2) ** 0.5)
+class Display:
 
-x = np.concatenate((xt, np.flip(xt, 0)), axis=0)
-y = np.concatenate((yt1, np.flip(yt2, 0)), axis=0)
+    def __init__(self, dt, arm_lengths, start_pos):
+        # initialise real-time plot with pygame
+        self.arm_lengths = arm_lengths
+        pygame.init()  # start pygame
+        self.window = pygame.display.set_mode((800, 600))  # create a window (size in pixels)
+        self.window.fill((255, 255, 255))  # white background
+        self.xc, self.yc = self.window.get_rect().center  # window center
+        pygame.display.set_caption('robot arm')
 
-pr = np.array((x / 10 + 0.0, y / 10 + 0.1))  # reference endpoint trajectory
+        self.font = pygame.font.Font('freesansbold.ttf', 12)  # printing text font and font size
+        self.text = self.font.render('robot arm', True, (0, 0, 0), (255, 255, 255))  # printing text object
+        self.textRect = self.text.get_rect()
+        self.textRect.topleft = (10, 10)  # printing text position with respect to the top-left corner of the window
 
-'''*********** Student should fill in ***********'''
-# PID CONTROLLER PARAMETERS
-Kp = 15  # proportional gain
-Ki = 0.3  # integral gain
-Kd = 0.1  # derivative gain
-'''*********** Student should fill in ***********'''
-se = 0.0  # integrated error
-pe = 0.0  # previous error
+        self.clock = pygame.time.Clock()  # initialise clock
 
-se2 = 0.0  # integrated error
-pe2 = 0.0  # previous error
-# SIMULATOR
-# initialise robot model class
-model = robot_arm_2dof(l)
-controller = Controller(Kp, Ki,Kd)
+        # SIMULATION PARAMETERS
+        dts = dt * 1  # desired simulation step time (NOTE: it may not be achieved)
+        self.T = 3  # total simulation time
 
-# initialise real-time plot with pygame
-pygame.init()  # start pygame
-window = pygame.display.set_mode((800, 600))  # create a window (size in pixels)
-window.fill((255, 255, 255))  # white background
-xc, yc = window.get_rect().center  # window center
-pygame.display.set_caption('robot arm')
+        self.FPS = int(1 / dts)  # refresh rate
 
-font = pygame.font.Font('freesansbold.ttf', 12)  # printing text font and font size
-text = font.render('robot arm', True, (0, 0, 0), (255, 255, 255))  # printing text object
-textRect = text.get_rect()
-textRect.topleft = (10, 10)  # printing text position with respect to the top-left corner of the window
+        # scaling
+        self.window_scale = 400  # conversion from meters to pixels
 
-clock = pygame.time.Clock()  # initialise clock
-FPS = int(1 / dts)  # refresh rate
+        self.start = start_pos
 
-# initial conditions
-t = 0.0  # time
-q0 = model.IK2(pr[:, 0])  # initial configuration
-q = np.array([np.pi, -np.pi, q0[0]])  # initial configuration
-dq = np.array([0., 0., 0.])  # joint velocity
-model.state(q, dq)  # update initial state
-i = 0  # loop counter
-state = []  # state vector
-last_p_end = np.array([0, 0])
-last_p_2 = np.array([0, 0])
+    def render(self, q, goal):
+        l1, l2, l3 = self.arm_lengths
+        # update individual link position
+        x0, y0 = self.start
+        xbase, ybase = [0,0]
+        # print(q[0])
+        # print(l1)
+        x1 = x0 + l1 * np.cos(q[0])
+        y1 = y0 + l1 * np.sin(q[0])
+        # print("xy",x1,y1)
+        x2 = x1 + l2 * np.cos(q[0] + q[1])
+        y2 = y1 + l2 * np.sin(q[0] + q[1])
+        x3 = x2 + l3 * np.cos(q[0] + q[1] + q[2])
+        y3 = y2 + l3 * np.sin(q[0] + q[1] + q[2])
+        # x4 = x3 + l4 * np.cos(q[0] + q[1] + q[2] + q[3])
+        # y4 = y3 + l4 * np.sin(q[0] + q[1] + q[2] + q[3])
+        window_scale = self.window_scale
+        xc, yc = self.xc, self.yc
+        # real-time plotting
+        self.window.fill((255, 255, 255))  # clear window
 
-# scaling
-window_scale = 400  # conversion from meters to pixles
+        # xy_list = list(zip([xbase, x0, x1], [ybase, y0, y1]))
+        xy_list = list(zip([xbase, x0, x1, x2, x3], [ybase, y0, y1, y2, y3]))
 
-# wait until the start button is pressed
-run = True
-while run:
-    for event in pygame.event.get():  # interrupt function
-        run = False
-        if event.type == pygame.KEYUP:
-            if event.key == ord('e'):  # enter the main loop after 'e' is pressed
-                run = False
+        xy_list_lines = xy_list.copy()
+        points = np.array(xy_list_lines)
+        #
+        points *= window_scale
+        points[:, 1] *= -1
+        points[:] += np.array([xc, yc])
+        pygame.draw.lines(self.window, (0, 0, 255), False, points, 3)
 
-# MAIN LOOP
-run = True
-for i in range(len(x)):
-    for event in pygame.event.get():  # interrupt function
-        if event.type == pygame.QUIT:  # force quit with closing the window
-            run = False
-        elif event.type == pygame.KEYUP:
-            if event.key == ord('q'):  # force quit with q button
-                run = False
 
-    # update individual link position
-    x1 = l1 * np.cos(q[0])
-    y1 = l1 * np.sin(q[0])
-    x2 = x1 + l2 * np.cos(q[0] + q[1])
-    y2 = y1 + l2 * np.sin(q[0] + q[1])
-    x3 = x2 + l3 * np.cos(q[0] + q[1] + q[2])
-    y3 = y2 + l3 * np.sin(q[0] + q[1] + q[2])
-    # x4 = x3 + l4 * np.cos(q[0] + q[1] + q[2] + q[3])
-    # y4 = y3 + l4 * np.sin(q[0] + q[1] + q[2] + q[3])
+        def draw_points(xy, color=(0, 0, 0)):
+            for x, y in xy:
+                pygame.draw.circle(self.window, color,
+                                   (int(window_scale * x) + xc, int(-window_scale * y) + yc),
+                                   5)
 
-    # real-time plotting
-    window.fill((255, 255, 255))  # clear window
-    pygame.draw.circle(window, (0, 255, 0), (int(window_scale * pr[0, i]) + xc, int(-window_scale * pr[1, i]) + yc),
-                       3)  # draw reference position
-    pygame.draw.lines(window, (0, 0, 255), False, [(window_scale * x0 + xc, -window_scale * y0 + yc),
-                                                   (window_scale * x1 + xc, -window_scale * y1 + yc),
-                                                   (window_scale * x2 + xc, -window_scale * y2 + yc),
-                                                   (window_scale * x3 + xc, -window_scale * y3 + yc)], 3)  # draw links
-    pygame.draw.circle(window, (0, 0, 0), (int(window_scale * x0) + xc, int(-window_scale * y0) + yc),
-                       7)  # draw shoulder / base
-    pygame.draw.circle(window, (0, 0, 0), (int(window_scale * x1) + xc, int(-window_scale * y1) + yc),
-                       7)  # draw first elbow
-    pygame.draw.circle(window, (0, 0, 0), (int(window_scale * x2) + xc, int(-window_scale * y2) + yc),
-                       7)  # draw second elbow
-    pygame.draw.circle(window, (0, 0, 0), (int(window_scale * x3) + xc, int(-window_scale * y3) + yc),
-                       7)  # draw third elbow
-    # pygame.draw.circle(window, (255, 0, 0), (int(window_scale * x4) + xc, int(-window_scale * y4) + yc),
-    #                    3)  # draw hand / endpoint
+        draw_points(xy_list[0:-1])
+        draw_points(xy_list[-1:], color=(255, 0, 0))
 
-    text = font.render("FPS = " + str(round(clock.get_fps())), True, (0, 0, 0), (255, 255, 255))
-    window.blit(text, textRect)
+        # pygame.draw.circle(window, (255, 0, 0), (int(window_scale * x4) + xc, int(-window_scale * y4) + yc),
+        #                    3)  # draw hand / endpoint
+        pygame.draw.circle(self.window, (0, 255, 0),
+                           (int(window_scale * goal[0]) + xc, int(-window_scale * goal[1]) + yc),
+                           3)  # draw reference position
 
-    pygame.display.flip()  # update display
 
-    '''*********** Student should fill in ***********'''
-    goal = pr[:, i]
-    model.state(q, dq)
-    p, dq = controller.control(model, goal, dt)
-    # log states for analysis
-    state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], p[0], p[1]])
+        text = self.font.render("FPS = " + str(round(self.clock.get_fps())), True, (0, 0, 0), (255, 255, 255))
+        self.window.blit(text, self.textRect)
 
-    # get joint angles by intergration
-    q += dq * dt
-    t += dt
+        pygame.display.flip()  # update display
 
-    # increase loop counter
-    i = i + 1
+    def tick(self):
+        self.clock.tick(self.FPS)
 
-    # try to keep it real time with the desired step time
-    clock.tick(FPS)
 
-    if i >= len(x):
-        run = False
-    if run == False:
-        break
+def plot_state(state):
+    state = np.array(state)
 
-pygame.quit()  # stop pygame
+    plt.figure(1)
+    plt.subplot(211)
+    plt.title("JOINT SPACE BEHAVIOUR")
+    plt.plot(state[:, 0], state[:, 4], "b", label="shoulder")
+    plt.plot(state[:, 0], state[:, 5], "r", label="elbow1")
+    plt.plot(state[:, 0], state[:, 6], "g", label="elbow2")
+    # plt.plot(state[:, 0], state[:, 7], "m", label="elbow3")
+    plt.legend()
+    plt.ylabel("dq [rad/s]")
 
-'''ANALYSIS'''
+    plt.subplot(212)
+    plt.plot(state[:, 0], state[:, 1], "b", label="shoulder")
+    plt.plot(state[:, 0], state[:, 2], "r", label="elbow1")
+    plt.plot(state[:, 0], state[:, 3], "g", label="elbow2")
+    # plt.plot(state[:, 0], state[:, 4], "m", label="elbow3")
+    plt.legend()
+    plt.ylabel("q [rad]")
+    plt.xlabel("t [s]")
 
-state = np.array(state)
+    plt.tight_layout()
 
-plt.figure(1)
-plt.subplot(211)
-plt.title("JOINT SPACE BEHAVIOUR")
-plt.plot(state[:, 0], state[:, 4], "b", label="shoulder")
-plt.plot(state[:, 0], state[:, 5], "r", label="elbow1")
-plt.plot(state[:, 0], state[:, 6], "g", label="elbow2")
-# plt.plot(state[:, 0], state[:, 7], "m", label="elbow3")
-plt.legend()
-plt.ylabel("dq [rad/s]")
+    plt.figure(2)
+    plt.title("ENDPOINT SPACE BEHAVIOUR")
+    plt.plot(0, 0, "ok", label="shoulder")
+    plt.plot(state[:, 9], state[:, 10], label="trajectory")
+    plt.plot(state[0, 9], state[0, 10], "xg", label="start point")
+    plt.plot(state[-4, 7], state[-4, 10], "+r", label="end point")
+    plt.axis('equal')
+    plt.xlabel("x [m]")
+    plt.ylabel("y [m]")
+    plt.legend()
 
-plt.subplot(212)
-plt.plot(state[:, 0], state[:, 1], "b", label="shoulder")
-plt.plot(state[:, 0], state[:, 2], "r", label="elbow1")
-plt.plot(state[:, 0], state[:, 3], "g", label="elbow2")
-# plt.plot(state[:, 0], state[:, 4], "m", label="elbow3")
-plt.legend()
-plt.ylabel("q [rad]")
-plt.xlabel("t [s]")
-
-plt.tight_layout()
-
-plt.figure(2)
-plt.title("ENDPOINT SPACE BEHAVIOUR")
-plt.plot(0, 0, "ok", label="shoulder")
-plt.plot(state[:, 9], state[:, 10], label="trajectory")
-plt.plot(state[0, 9], state[0, 10], "xg", label="start point")
-plt.plot(state[-4, 7], state[-4, 10], "+r", label="end point")
-plt.axis('equal')
-plt.xlabel("x [m]")
-plt.ylabel("y [m]")
-plt.legend()
-
-plt.tight_layout()
+    plt.tight_layout()
