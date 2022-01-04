@@ -36,21 +36,39 @@ def keyboard_control(dt, goal):
     return goal
 
 
+def constraint(model: robot_arm_3dof, dq, dt):
+    global_pos_constraint_lb = [0.01,-0.1]
+
+    joint_pos = model.FK4_all()
+    joint_pos_new = model.FK4_all(model.q + dq * dt)
+    # todo
+    # for i in range(len(dq)):
+    #     joint_pos_new = model.FK4_all(model.q + dq * dt)
+    #     if[joint_pos_new[i]]
+
+    # Set dq to zero if constraint is met
+    dq[np.any(joint_pos_new < global_pos_constraint_lb)] = 0
+    # dq[np.any(joint_pos_new < global_pos_constraint_lb)] = 0
+    # print(np.any(joint_pos_new < global_pos_constraint_lb, axis=1))
+    return dq
+
+
 if __name__ == '__main__':
     l = ARMS_LENGTHS
 
-    robot_base = np.array([0, 0.2])
+    initial_angles = np.array([0, np.pi * 0.8, -np.pi * 0.8])
+    robot_base = np.array([0, 0.1])
+    local_start = np.array([0.3, 0])
     model = robot_arm_3dof(l)
     controller = Controller(kp=15, ki=0.1, kd=0.1)
 
     t = 0.0  # time
-    # pr = np.array((x / 10 + 0.0, y / 10 + 0.1))  # reference endpoint trajectory
-    q0 = model.IK2([0, 0.2])  # initial configuration
-    q = np.array([np.pi, -np.pi, q0[0]])  # initial configuration
+    q = initial_angles  # initial configuration
     dq = np.array([0., 0., 0.])  # joint velocity
 
     state = []  # state vector
-    goal = robot_base
+    p = robot_base + local_start
+    goal = robot_base + local_start
 
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
 
@@ -67,7 +85,8 @@ if __name__ == '__main__':
         F_end = controller.pid_control(model, local_goal, dt)
 
         p, dq = controller.control(model, local_goal, F_end)
-
+        dq = constraint(model, q, dq, dt)
+        # Move angles
         q += dq * dt
         t += dt
 

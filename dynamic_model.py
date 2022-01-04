@@ -35,15 +35,18 @@ class robot_arm_3dof:
         return J
 
     # forward kinematics (until the end of the chain, i.e., primary endpoint)
-    def FK4(self):
-        p = np.zeros([2])  # endpoint position
-        '''*********** Student should fill in ***********'''
+    def FK4_all(self, other_q=None):
         l = self.l
         q = self.q
-        p[0] = l[0] * cos(q[0]) + l[1] * cos(q[0] + q[1]) + l[2] * cos(q[0] + q[1] + q[2])
-        p[1] = l[0] * sin(q[0]) + l[1] * sin(q[0] + q[1]) + l[2] * sin(q[0] + q[1] + q[2])
-        '''*********** Student should fill in ***********'''
-        return p
+        if other_q is not None:
+            q = other_q
+        p1 = np.array([l[0] * cos(q[0]), l[0] * sin(q[0])])
+        p2 = p1 + l[1] * np.array([cos(q[0] + q[1]), sin(q[0] + q[1])])
+        p3 = p2 + l[2] * np.array([cos(q[0] + q[1] + q[2]), sin(q[0] + q[1] + q[2])])
+        return np.array([p1, p2, p3])
+
+    def FK4(self):
+        return self.FK4_all()[2]
 
     # Jacobian matrix (until the end of the chain, i.e., primary endpoint)
     def Jacobian4(self):
@@ -108,6 +111,7 @@ class Controller:
         # KINEMATIC CONTROL
         J_end = model.Jacobian4()
         p_end = model.FK4()
+
         # error2 = - p2
         # d_p2 = p2 - self.last_p_2
 
@@ -124,7 +128,7 @@ class Controller:
         # null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
 
         dq = J_end_robust @ F_end  # + null_space_control
-        print("goal, p_end, F_end, dq", goal, p_end, F_end)
+        # print("goal, p_end, F_end, dq", goal, p_end, F_end)
 
         p = p_end
         return p, dq
