@@ -3,9 +3,10 @@ import numpy as np
 import pygame
 from pygame import K_RIGHT, K_LEFT, K_UP, K_DOWN
 
-from constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, ARM_WIDTH
+from arduino_communication import sent_action
+from constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, ARM_WIDTH, INITIAL_CONFIG_SERVO
 from dynamic_model import robot_arm_3dof, Controller
-from utils import length, config_to_polygon_pygame, check_collision, config_to_polygon, arm_to_polygon
+from sim_utils import length, config_to_polygon_pygame, check_collision, config_to_polygon, arm_to_polygon
 from visualization_util import draw_rectangle_from_config, DISPLAY
 from visualize_robot_arm import Display
 
@@ -95,7 +96,7 @@ if __name__ == '__main__':
     controller = Controller(kp=15, ki=0.1, kd=0.1)
 
     t = 0.0  # time
-    q = INITIAL_CONFIG_Q  # initial configuration
+    q = INITIAL_CONFIG_Q.copy()  # initial configuration
     dq = np.array([0., 0., 0.])  # joint velocity
 
     state = []  # state vector
@@ -103,7 +104,8 @@ if __name__ == '__main__':
     goal = robot_base + local_start
 
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
-
+    step = 0
+    sent = 2
     while True:
         display.render(q, goal)
 
@@ -120,8 +122,18 @@ if __name__ == '__main__':
 
         p, dq = controller.control(model, F_end)
         dq, vis_polygons = constraint(model, dq, dt)
+
         # Move angles
         q += dq * dt
+        if step % 100 == 0:
+            print("q-INITIAL_CONFIG_Q", q - INITIAL_CONFIG_SERVO)
+            print("INITIAL_CONFIG_Q", INITIAL_CONFIG_SERVO)
+            q_temp = ((q-INITIAL_CONFIG_SERVO) * 100).astype(int)
+            # q_temp = (q * 100).astype(int)
+            # sent_action(f"0:{q_temp[0]}")
+            # sent_action(f"0:{q_temp[0]},1:{-q_temp[1]},2:{q_temp[2]}")
+            sent_action(q)
+            # sent_action(f"0:{q[0]},1:{q[1]},2:{q[2]},3:{sent}")
         t += dt
 
         # Render
@@ -136,3 +148,4 @@ if __name__ == '__main__':
         # try to keep it real time with the desired step time
         display.tick()
         pygame.display.flip()  # update display
+        step += 1
