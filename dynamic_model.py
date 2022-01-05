@@ -107,15 +107,16 @@ class Controller:
 
         return F_end
 
-    def control(self, model, goal, F_end):
+    def control(self, model, F_end):
         # KINEMATIC CONTROL
         J_end = model.Jacobian4()
         p_end = model.FK4()
-
-        # error2 = - p2
+        p2 = model.FK2()
+        error2 = np.ones(2) - p2
         # d_p2 = p2 - self.last_p_2
 
-        # F_2 = self.Kp * error2 + self.Ki * self.se * dt - self.Kd * d_p2 / dt
+        # Could improve robot arm movement by moving away from itself to avoid colliding
+        F_2 = self.Kp*0 * error2  # + self.Ki * self.se * dt - self.Kd * d_p2 / dt
 
         def J_robust(_J):
             _Jt = _J.transpose()
@@ -123,11 +124,11 @@ class Controller:
             return _Jt @ np.linalg.inv(_J @ _Jt + damp_identity)
 
         J_end_robust = J_robust(J_end)
-        # J_2_robust = J_2_robust
-        # null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
-        # null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
+        J_2_robust = J_robust(model.Jacobian2())
+        null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
+        null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
 
-        dq = J_end_robust @ F_end  # + null_space_control
+        dq = J_end_robust @ F_end + null_space_control
         # print("goal, p_end, F_end, dq", goal, p_end, F_end)
 
         p = p_end

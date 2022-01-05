@@ -37,6 +37,8 @@ import matplotlib.pyplot as plt
 import pygame
 from numpy import sin, cos
 
+from visualization_util import DISPLAY, WINDOW_SCALE
+
 '''SIMULATION'''
 
 
@@ -57,10 +59,8 @@ class Display:
     def __init__(self, dt, arm_lengths, start_pos):
         # initialise real-time plot with pygame
         self.arm_lengths = arm_lengths
-        pygame.init()  # start pygame
-        self.window = pygame.display.set_mode((800, 600))  # create a window (size in pixels)
-        self.window.fill((255, 255, 255))  # white background
-        self.xc, self.yc = self.window.get_rect().center  # window center
+
+        self.xc, self.yc = DISPLAY.get_rect().center  # window center
         pygame.display.set_caption('robot arm')
 
         self.font = pygame.font.Font('freesansbold.ttf', 12)  # printing text font and font size
@@ -77,11 +77,14 @@ class Display:
         self.FPS = int(1 / dts)  # refresh rate
 
         # scaling
-        self.window_scale = 400  # conversion from meters to pixels
+        self.window_scale = WINDOW_SCALE  # conversion from meters to pixels
 
         self.start = start_pos
 
     def render(self, q, goal):
+        # real-time plotting
+        DISPLAY.fill((255, 255, 255))  # clear window
+
         l1, l2, l3 = self.arm_lengths
         # update individual link position
         x0, y0 = self.start
@@ -99,8 +102,6 @@ class Display:
         # y4 = y3 + l4 * np.sin(q[0] + q[1] + q[2] + q[3])
         window_scale = self.window_scale
         xc, yc = self.xc, self.yc
-        # real-time plotting
-        self.window.fill((255, 255, 255))  # clear window
 
         # xy_list = list(zip([xbase, x0, x1], [ybase, y0, y1]))
         xy_list = list(zip([xbase, x0, x1, x2, x3], [ybase, y0, y1, y2, y3]))
@@ -111,12 +112,13 @@ class Display:
         points *= window_scale
         points[:, 1] *= -1
         points[:] += np.array([xc, yc])
-        pygame.draw.lines(self.window, (0, 0, 255), False, points, 3)
+        pygame.draw.lines(DISPLAY, (0, 0, 255), False, points, 3)
+        xc,yc = DISPLAY.get_rect().center
 
 
         def draw_points(xy, color=(0, 0, 0)):
             for x, y in xy:
-                pygame.draw.circle(self.window, color,
+                pygame.draw.circle(DISPLAY, color,
                                    (int(window_scale * x) + xc, int(-window_scale * y) + yc),
                                    5)
 
@@ -125,15 +127,13 @@ class Display:
 
         # pygame.draw.circle(window, (255, 0, 0), (int(window_scale * x4) + xc, int(-window_scale * y4) + yc),
         #                    3)  # draw hand / endpoint
-        pygame.draw.circle(self.window, (0, 255, 0),
+        pygame.draw.circle(DISPLAY, (0, 255, 0),
                            (int(window_scale * goal[0]) + xc, int(-window_scale * goal[1]) + yc),
                            3)  # draw reference position
 
 
         text = self.font.render("FPS = " + str(round(self.clock.get_fps())), True, (0, 0, 0), (255, 255, 255))
-        self.window.blit(text, self.textRect)
-
-        pygame.display.flip()  # update display
+        DISPLAY.blit(text, self.textRect)
 
     def tick(self):
         self.clock.tick(self.FPS)
