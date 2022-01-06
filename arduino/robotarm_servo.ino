@@ -28,7 +28,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // want these to be as small/large as possible without hitting the hard stop
 // for max range. You'll have to tweak them as necessary to match the servos you
 // have!
-#define SERVOMIN  300  // This is the 'minimum' pulse length count (out of 4096)
+#define SERVOMIN  330  // This is the 'minimum' pulse length count (out of 4096)
 #define SERVOMAX  2500 // This is the 'maximum' pulse length count (out of 4096)
 #define USMIN  600 // This is the rounded 'minimum' microsecond length based on the minimum pulse of 150
 #define USMAX  2400 // This is the rounded 'maximum' microsecond length based on the maximum pulse of 600
@@ -92,6 +92,7 @@ void setServoPulse(uint8_t n, double pulse) {
   Serial.println(pulse);
   pwm.setPWM(n, 0, pulse);
 }
+const int max_angle = 100;
 
 void read_and_set_servo(){
     char * pch;
@@ -109,13 +110,17 @@ void read_and_set_servo(){
           *separator = 0;
           int joint_id = atoi(command);
           ++separator;
-          int position = atoi(separator);
+          int pos = atoi(separator);
 
-          val1 = map(position, -50, 50, SERVOMIN, SERVOMAX);
+          val1 = map(pos, 0, 100, SERVOMIN, SERVOMAX);
+//          pwm.writeMicroseconds(joint_id, val1);
+          if (joint_id == 0){
+            Serial.write(val1);
+          }
 //        First joint has two servos. The second one gets a reversed signal.
           if (joint_id == 0){
              pwm.writeMicroseconds(0, val1);
-             val1 = map(-position, -50, 50, SERVOMIN, SERVOMAX);
+             val1 = map(100-pos, 0, 100, SERVOMIN, SERVOMAX);
              pwm.writeMicroseconds(1, val1);
           }
           else{
@@ -129,31 +134,32 @@ void read_and_set_servo(){
 }
 
 int start = 1;
-bool tune_start = false;
+bool tune_start = true;
 void loop() {
- if (Serial.available()){
+ if (!tune_start and Serial.available()){
       read_and_set_servo();
  }
-   val1 = analogRead(potpin1);
-  val2 = analogRead(potpin2);
-  val3 = analogRead(potpin3);
+  int pot1 = analogRead(potpin1);
+  int pot2 = analogRead(potpin2);
+//  val3 = analogRead(potpin3);
 //
 //
 if (tune_start){
-    int start_pos1 = map(val1, 0, 1023, SERVOMIN, SERVOMAX);
+    int start_pos1 = map(pot1, 0, 1023, SERVOMIN, SERVOMAX);
+    int start_pos2 = map(1023-pot1, 0, 1023, SERVOMIN, SERVOMAX);
    Serial.println(start_pos1);
-    int start_pos2 = map(val2, 0, 1023, SERVOMIN, SERVOMAX);
-    int start_pos3 = map(val3, 0, 1023, SERVOMIN, SERVOMAX);
+//    int start_pos2 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);
+    int start_pos3 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);
     pwm.writeMicroseconds(0, start_pos1);
     pwm.writeMicroseconds(1, start_pos2);
     pwm.writeMicroseconds(2, start_pos3);
  }
 
-   Serial.println(val1);
+   Serial.println(pot1);
 
 //  Serial.println(val2);
 //  Serial.println(val3);
-   val1 = map(val1, 0, 1023, SERVOMIN, SERVOMAX);
+//   val1 = map(val1, 0, 1023, SERVOMIN, SERVOMAX);
 //    pwm.writeMicroseconds(0, val1);
 //   val2 = map(val2, 0, 1023, 350, 660);
 //   val3 = map(val3, 0, 1023, 350, 660);
