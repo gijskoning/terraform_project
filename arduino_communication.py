@@ -2,13 +2,14 @@ import math
 
 import numpy as np
 import time
-import serial
+
+from serial import Serial
 
 
 class ArduinoControl:
 
     def __init__(self, port='COM6'):
-        self.arduino = serial.Serial(port=port, baudrate=115200, timeout=.1)
+        self.arduino = Serial(port=port, baudrate=115200, timeout=.1)
 
     def set_servo(self, q, debug=False):
         """
