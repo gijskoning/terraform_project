@@ -4,6 +4,9 @@ import numpy as np
 # ARMS_LENGTHS = np.array([0.9, 0.3, 0.3])  # mm Third arm is last arm + gripper
 ARMS_LENGTHS = np.array([187.2, 117.5, 80.4 + 119]) / 1000  # mm Third arm is last arm + gripper
 ARM_WIDTH = 0.05
+
+CONTROL_DT = 0.01  # integration step time
+
 TOTAL_ARM_LENGTH = np.sum(ARMS_LENGTHS)
 ZERO_POS_BASE = (44 + 100) / 1000  # mm Base servo plus base
 

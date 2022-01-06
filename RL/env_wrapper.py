@@ -322,7 +322,7 @@ class GymEnvWrapper(EnvWrapper):
 
     def _get_hybrid_state(self):
         grip_pos = self._env.sim.data.get_site_xpos('robot0:grip')
-        dt = self._env.sim.nsubsteps * self._env.sim.model.opt.timestep
+        dt = self._env.sim.nsubsteps * self._env.sim.robot_arm.opt.timestep
         grip_velp = self._env.sim.data.get_site_xvelp('robot0:grip') * dt
         robot_qpos, robot_qvel = gym.envs.robotics.utils.robot_get_obs(self._env.sim)
         gripper_state = robot_qpos[-2:]
