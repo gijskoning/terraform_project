@@ -3,15 +3,30 @@ import math
 
 from numpy import sin, cos
 
+from arduino_communication import ArduinoControl
+from sim_utils import arm_to_polygon, check_collision
+from visualization_util import draw_rectangle_from_config
+from constants import ARMS_LENGTHS, ARM_WIDTH, INITIAL_CONFIG_SERVO, CONTROL_DT
 
-class robot_arm_3dof:
 
-    def __init__(self, l):
+class RobotArm3dof:
+
+    def __init__(self, l, reset_q=None, arduino_control: ArduinoControl = None, dt=CONTROL_DT):
         self.l = l  # link length
-
-        self.q = np.array([0.0, 0.0, 0.0])  # joint position
+        if reset_q is not None:
+            self.reset_q = reset_q.copy()
+        else:
+            self.reset_q = np.array([0.0, 0.0, 0.0])
+        self.q = self.reset_q.copy()  # joint position
         self.dq = np.array([0.0, 0.0, 0.0])  # joint velocity
         self.tau = np.array([0.0, 0.0, 0.0])  # joint torque
+        self.lambda_coeff = 0.001  # coefficient for robustness of singularity positions
+
+        self.arduino_control = arduino_control
+        self.dt = dt
+
+        # For visualization
+        self.arm_regions = []
 
     # forward kinematics (until the second elbow, i.e., secondary endpoint)
     def FK2(self):
@@ -45,7 +60,7 @@ class robot_arm_3dof:
         p3 = p2 + l[2] * np.array([cos(q[0] + q[1] + q[2]), sin(q[0] + q[1] + q[2])])
         return np.array([p1, p2, p3])
 
-    def FK4(self):
+    def FK_end_p(self):
         return self.FK4_all()[2]
 
     # Jacobian matrix (until the end of the chain, i.e., primary endpoint)
@@ -73,16 +88,121 @@ class robot_arm_3dof:
         return q
 
     # state change
-    def state(self, q, dq):
+    def _set_state(self, q, dq):
         self.q = q
         self.dq = dq
 
+    def get_dq(self, F):
+        """"
+        F: float[2] the endpoint movement
+        """
+        # KINEMATIC CONTROL
+        J_end = self.Jacobian4()
 
-class Controller:
+        # p_end = self.FK4()
+        # p2 = self.FK2()
+
+        # error2 = np.ones(2) - p2
+
+        # d_p2 = p2 - self.last_p_2
+
+        # Could improve robot arm movement by moving away from itself to avoid colliding
+        # F_2 = self.Kp*0 * error2  # + self.Ki * self.se * dt - self.Kd * d_p2 / dt
+
+        def J_robust(_J):
+            _Jt = _J.transpose()
+            damp_identity = self.lambda_coeff * np.identity(len(_J))
+            return _Jt @ np.linalg.inv(_J @ _Jt + damp_identity)
+
+        J_end_robust = J_robust(J_end)
+        # J_2_robust = J_robust(self.Jacobian2())
+        # null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
+        # null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
+
+        dq = J_end_robust @ F  # + null_space_control
+
+        return dq
+
+    def move_endpoint_xz(self, F, iteration=0):
+        """"
+        F: float[2] the endpoint movement (x,z)
+        """
+        dq = self.get_dq(F)
+
+        dq = self.constraint(dq)
+        self.q += dq * self.dt
+        self.dq = dq
+        p = self.FK_end_p()
+
+        if self.arduino_control is not None:
+            # Move angles
+            # Todo this code should move to arduino class
+            if iteration % 100 == 0:
+                print("q-INITIAL_CONFIG_Q", self.q - INITIAL_CONFIG_SERVO)
+                print("INITIAL_CONFIG_Q", INITIAL_CONFIG_SERVO)
+                q_temp = ((self.q - INITIAL_CONFIG_SERVO) * 100).astype(int)
+                # q_temp = (q * 100).astype(int)
+                # sent_action(f"0:{q_temp[0]}")
+                # sent_action(f"0:{q_temp[0]},1:{-q_temp[1]},2:{q_temp[2]}")
+                # sent_action(f"0:{q[0]},1:{q[1]},2:{q[2]},3:{sent}")
+                self.arduino_control.sent_action(self.q)
+
+        return p, self.q, dq
+
+    def reset(self, joint_angles=None):
+        if joint_angles is None:
+            self.q = self.reset_q.copy()
+        else:
+            self.q = joint_angles.copy()
+        if self.arduino_control is not None:
+            self.arduino_control.sent_action(self.q)
+
+    def constraint(self, dq):
+        global_pos_constraint_lb = [0.01, -0.1]
+        p = np.zeros(2)
+        self.arm_regions = []
+
+        def create_obstacles(joint_pos_new, q):
+            obstacles = []
+            for i in range(len(dq)):
+                l = ARMS_LENGTHS[i]
+                if i > 0:
+                    p = joint_pos_new[i - 1]
+                else:
+                    p = np.zeros(2)
+                obstacles.append(arm_to_polygon(*p, np.sum(q[:i + 1]), l, ARM_WIDTH))
+            return obstacles
+
+        for i in range(len(dq)):
+            new_q = self.q + dq * self.dt
+            joint_pos_new = self.FK4_all(new_q)
+
+            # Global constraint check
+            if np.any(joint_pos_new < global_pos_constraint_lb):
+                dq[i] = 0
+            # Check collision with itself
+            if i > 0:
+                p = joint_pos_new[i - 1].copy()
+            if not check_collision(create_obstacles(joint_pos_new, new_q)):
+                dq[i] = 0
+
+            l = ARMS_LENGTHS[i]
+            pol = arm_to_polygon(*p, np.sum(self.q[:i + 1]), l, ARM_WIDTH)
+            self.arm_regions.append(pol)
+            # if np.any(joint_pos_new < global_pos_constraint_lb):
+            #     dq[i] = 0
+
+        return dq
+
+    def debug_visualization(self, robot_base):
+        for pol in self.arm_regions:
+            pol = [xy + robot_base for xy in pol]
+            draw_rectangle_from_config(pol)
+
+
+class PIDController:
 
     def __init__(self, kp=1, ki=0, kd=0):
-        self.lambda_coeff = 0.001
-
         self.i = 0  # loop counter
         self.se = 0.0  # integrated error
         self.state = []  # state vector
@@ -93,9 +213,8 @@ class Controller:
         self.Ki = ki
         self.Kd = kd
 
-    def pid_control(self, model, goal, dt):
+    def control_step(self, p_end, goal, dt):
         # KINEMATIC CONTROL
-        p_end = model.FK4()
         error = goal - p_end
         d_p = p_end - self.last_p_end
 
@@ -107,37 +226,7 @@ class Controller:
 
         return F_end
 
-    def control(self, model, F_end):
-        # KINEMATIC CONTROL
-        J_end = model.Jacobian4()
-        p_end = model.FK4()
-        p2 = model.FK2()
-        error2 = np.ones(2) - p2
-        # d_p2 = p2 - self.last_p_2
-
-        # Could improve robot arm movement by moving away from itself to avoid colliding
-        F_2 = self.Kp*0 * error2  # + self.Ki * self.se * dt - self.Kd * d_p2 / dt
-
-        def J_robust(_J):
-            _Jt = _J.transpose()
-            damp_identity = self.lambda_coeff * np.identity(len(_J))
-            return _Jt @ np.linalg.inv(_J @ _Jt + damp_identity)
-
-        J_end_robust = J_robust(J_end)
-        J_2_robust = J_robust(model.Jacobian2())
-        null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
-        null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
-
-        dq = J_end_robust @ F_end + null_space_control
-        # print("goal, p_end, F_end, dq", goal, p_end, F_end)
-
-        p = p_end
-        return p, dq
-
 
 if __name__ == '__main__':
-    from constants import ARMS_LENGTHS
-
-    l = ARMS_LENGTHS
-    model = robot_arm_3dof(l)
-    controller = Controller()
+    model = RobotArm3dof(l=ARMS_LENGTHS)
+    controller = PIDController()
