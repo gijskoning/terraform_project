@@ -5,7 +5,6 @@ import time
 
 from serial import Serial
 
-
 # for wsl: https://devblogs.microsoft.com/commandline/connecting-usb-devices-to-wsl/
 # sudo chmod 666 /dev/ttyS4
 from gym_robotic_arm.constants import MIN_CONFIG_SERVO
@@ -18,17 +17,20 @@ class ArduinoControl:
 
         self.arduino = Serial(port=port, baudrate=115200, timeout=.1)
 
+    def transform_q(self, q):
+        return -q + MIN_CONFIG_SERVO
+
     def set_servo(self, q_global, debug=False):
         """
         :param q: numpy array for each joint angle
         :return:
         """
         resolution = 200
-        q = q_global - MIN_CONFIG_SERVO
+        q = self.transform_q(q_global)
         q = q / math.pi * resolution
-        q = q.astype(int)
         q = np.clip(q, 0, resolution)
-        s1, s2, s3 = q.astype(int)
+        q = q.astype(int)
+        s1, s2, s3 = q
         # self.write_message(f"0:{s1},1:{s2},2:{s3}", debug)
         self.write_message(f"0:{s1},1:{s2}", debug)
 

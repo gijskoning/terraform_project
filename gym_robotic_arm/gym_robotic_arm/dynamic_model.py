@@ -134,12 +134,18 @@ class RobotArm3dof:
         self.q += dq * self.dt
         # self.dq = dq
         self.end_p = self.FK_end_p()
+        if iteration % 100 == 0:
+            q_temp = -self.q - MIN_CONFIG_SERVO
+            print("q", q_temp)
+            print("q4", -self.q + MIN_CONFIG_SERVO)
+            print("q2", -self.q)
+            print("q3", q_temp / math.pi * 200)
+
         if self.arduino_control is not None:
 
             # Move angles
             # Todo this code should move to arduino class
             if iteration % 100 == 0:
-                print("q", self.q - MIN_CONFIG_SERVO)
 
                 # print("q-INITIAL_CONFIG_Q", self.q - INITIAL_CONFIG_SERVO)
                 # print("INITIAL_CONFIG_Q", INITIAL_CONFIG_SERVO)
