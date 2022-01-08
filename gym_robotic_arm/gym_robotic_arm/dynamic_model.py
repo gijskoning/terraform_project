@@ -135,11 +135,8 @@ class RobotArm3dof:
         # self.dq = dq
         self.end_p = self.FK_end_p()
         if iteration % 100 == 0:
-            q_temp = -self.q - MIN_CONFIG_SERVO
-            print("q", q_temp)
-            print("q4", -self.q + MIN_CONFIG_SERVO)
-            print("q2", -self.q)
-            print("q3", q_temp / math.pi * 200)
+            q_temp = -self.q + MIN_CONFIG_SERVO
+            print("q that will be sent", q_temp)
 
         if self.arduino_control is not None:
 
@@ -185,7 +182,6 @@ class RobotArm3dof:
                 obstacles.append(arm_to_polygon(*p, np.sum(q[:i + 1]), l, ARM_WIDTH))
             return obstacles
         new_q = self.q + dq * self.dt
-        print("new_q", new_q)
         # Check for base arm to not hit the base
         if new_q[0] < 0.05:
             dq[0] = 0
