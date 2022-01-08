@@ -50,7 +50,8 @@ const int left_servo = 1;
 const int right_servo = 15;
 const int servo_resolution = 200;
 
-bool execute_servo = false; // when false doesnt execute servos
+bool execute_servo = true; // when false doesnt execute servos
+bool servo_enabled[4] = {true,true,true,true};
 int vals[3];
 // For serial communication with pc
 #define INPUT_SIZE 30
@@ -104,7 +105,7 @@ void serialFlush(){
   }
 }
 void write_servo(int servo_id, int val){
-  if (execute_servo){
+  if (execute_servo and servo_enabled[servo_id]){
     pwm.writeMicroseconds(servo_id, val);
   }
 }
@@ -146,16 +147,18 @@ void read_and_set_servo(){
           }
           else{
             if (joint_id == 2){ // revert third joint angle
-              int temp_val = map(pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
+              int reversed_pos = servo_resolution -pos;
+              int temp_val = map(reversed_pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
               write_servo(joint_id+1, temp_val);
 
+              Serial.print("reversed_pos");Serial.println(reversed_pos);
               Serial.print("temp_val");Serial.println(temp_val);
               Serial.print("pos");Serial.println(pos);
               Serial.print("jointid");Serial.println(joint_id);
             }
-          //  else{
+            else{
              write_servo(joint_id+1, val1);
-           // }
+           }
           }
           // Do something with servoId and position
       }
@@ -166,7 +169,7 @@ void read_and_set_servo(){
 }
 
 int start = 1;
-bool tune_start = true;
+bool tune_start = false;
 int check_ending = 0;
 void loop() {
  if (!tune_start and Serial.available()){
@@ -186,7 +189,9 @@ void loop() {
 if (tune_start){
 
     check_ending = 1023 - check_ending; // be carefull using this switch actions
-    int start_pos1 = map(pot1, 0, 1023, SERVOMIN, SERVOMAX);
+
+    int q1 = map(pot1, 0, 1023, 0, servo_resolution);
+    int start_pos1 = map(q1, 0, servo_resolution, SERVOMIN, SERVOMAX);
     int start_pos2 = map(1023-pot1, 0, 1023, SERVOMIN, SERVOMAX);
 //   Serial.println(start_pos1);
     //int start_pos3 = map(check_ending, 0, 1023, SERVOMIN, SERVOMAX); // for simulating boundary signals
@@ -200,8 +205,6 @@ if (tune_start){
 //
 //   Serial.print("pot1: ");Serial.println(pot1);
 //   Serial.print("pot2: ");Serial.println(pot2);
-  int q1 = map(pot1, 0, 1023, 0, servo_resolution);
-   Serial.print("q1: ");Serial.println(q1);
 
    Serial.print("start_pos1: ");Serial.println(start_pos1);
    Serial.print("start_pos3: ");Serial.println(start_pos3);
