@@ -161,7 +161,7 @@ class RobotArm3dof:
         else:
             self.q = joint_angles.copy()
 
-        self.end_p = np.zeros(2)
+        self.end_p = self.FK_end_p()
 
         if self.arduino_control is not None:
             self.arduino_control.sent_action(self.q)
