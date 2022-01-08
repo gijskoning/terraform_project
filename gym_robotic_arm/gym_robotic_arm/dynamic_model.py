@@ -184,7 +184,12 @@ class RobotArm3dof:
                     p = np.zeros(2)
                 obstacles.append(arm_to_polygon(*p, np.sum(q[:i + 1]), l, ARM_WIDTH))
             return obstacles
-
+        new_q = self.q + dq * self.dt
+        print("new_q", new_q)
+        # Check for base arm to not hit the base
+        if new_q[0] < 0.05:
+            dq[0] = 0
+        # Other checks on all arms
         for i in range(len(dq)):
             new_q = self.q + dq * self.dt
             joint_positions_new = self.FK_all_points(new_q)
@@ -198,6 +203,7 @@ class RobotArm3dof:
             if not check_collision(create_obstacles(joint_positions_new, new_q)):
                 dq[i] = 0
 
+            # for visualization
             l = ARMS_LENGTHS[i]
             pol = arm_to_polygon(*p, np.sum(self.q[:i + 1]), l, ARM_WIDTH)
             self.arm_regions.append(pol)

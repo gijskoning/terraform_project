@@ -18,7 +18,14 @@ class ArduinoControl:
         self.arduino = Serial(port=port, baudrate=115200, timeout=.1)
 
     def transform_q(self, q):
+        # For specific configuration
         return -q + MIN_CONFIG_SERVO
+
+    def cap_angles(self, q):
+        # For specific configuration
+        q = q.copy()
+        q[0] = np.clip(q[0], 0, 80)
+        return q
 
     def set_servo(self, q_global, debug=False):
         """
@@ -29,7 +36,9 @@ class ArduinoControl:
         q = self.transform_q(q_global)
         q = q / math.pi * resolution
         q = np.clip(q, 0, resolution)
-        q[0] = np.clip(q[0], 0, 80)
+
+        q = self.cap_angles(q)
+
         q = q.astype(int)
         s1, s2, s3 = q
         # self.write_message(f"0:{s1},1:{s2},2:{s3}", debug)

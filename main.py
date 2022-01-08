@@ -63,7 +63,7 @@ if __name__ == '__main__':
             print(e)
     print("arduino_control", arduino_control)
     robot_base = np.array([0, ZERO_POS_BASE])
-    local_endp_start = np.array([0.3, 0])
+    local_endp_start = np.array([0.3, 0.])
 
     robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q, arduino_control=arduino_control)
     q = robot_arm.q
