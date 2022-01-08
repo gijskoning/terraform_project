@@ -55,7 +55,7 @@ def cap_goal(goal):
 if __name__ == '__main__':
     arduino = True
     arduino_control = None
-    arduino_port = 'ttyUSB0'  # Ubuntu desktop bottom right
+    arduino_port = '/dev/ttyUSB0'  # Ubuntu desktop bottom right
     if arduino:
         try:
             arduino_control = ArduinoControl(port=arduino_port)
