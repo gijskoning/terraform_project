@@ -1,6 +1,6 @@
 pip==21.*
 setuptools
-wheel==0.*
+wheel
 # wxPython
 # PyOpengl
 Matplotlib
@@ -9,12 +9,12 @@ pyserial
 # Pytorch dependencies
 torch==1.8.1 # 1.8.1+cu111
 torchvision==0.9.1
-mujoco-py==2.0.2
+# mujoco-py==2.0.2
 gym==0.17.2
 tensorboard==2.*
 scikit-image==0.17.2
 absl-py==0.9.0
-pillow==6.1
+pillow
 termcolor==1.1.0
 cffi==1.14.1
 imageio==2.9.0
