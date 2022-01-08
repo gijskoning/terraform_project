@@ -56,7 +56,7 @@ if __name__ == '__main__':
     arduino = True
     arduino_control = None
     arduino_port = '/dev/ttyUSB0'  # Ubuntu desktop bottom right
-    do_not_send = True
+    do_not_send = False
     if arduino:
         try:
             arduino_control = ArduinoControl(port=arduino_port, do_not_send=do_not_send)

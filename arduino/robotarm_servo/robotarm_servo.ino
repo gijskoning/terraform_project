@@ -49,6 +49,8 @@ int val3;
 const int left_servo = 1;
 const int right_servo = 15;
 const int servo_resolution = 200;
+
+bool execute_servo = false; // when false doesnt execute servos
 int vals[3];
 // For serial communication with pc
 #define INPUT_SIZE 30
@@ -101,13 +103,18 @@ void serialFlush(){
     char t = Serial.read();
   }
 }
-
+void write_servo(int servo_id, int val){
+  if (execute_servo){
+    pwm.writeMicroseconds(servo_id, val);
+  }
+}
 void read_and_set_servo(){
     int servos[3] = {0,0,0};
     char * pch;
     byte size = Serial.readBytes(input, INPUT_SIZE);
     input[size] = 0;
     char* command = strtok(input, ",");
+    Serial.print("command");Serial.println(command);
     //   Sent commands using 0:0    Which is equal to id:value
     while (command != 0)
     {
@@ -128,23 +135,32 @@ void read_and_set_servo(){
           int pos = atoi(separator);
 
           val1 = map(pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
-//          pwm.writeMicroseconds(joint_id, val1);
-          if (joint_id == 0){
-            Serial.write(val1);
-          }
+//          write_servo(joint_id, val1);
+
+
 //        First joint has two servos. The second one gets a reversed signal.
           if (joint_id == 0){
-             pwm.writeMicroseconds(left_servo, val1); // left servo
+             write_servo(left_servo, val1); // left servo
              int right_val = map(servo_resolution-pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
-             pwm.writeMicroseconds(right_servo, right_val); // right servo
+             write_servo(right_servo, right_val); // right servo
           }
           else{
-             pwm.writeMicroseconds(joint_id+1, val1);
+            if (joint_id == 2){ // revert third joint angle
+              int temp_val = map(pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
+              write_servo(joint_id+1, temp_val);
+
+              Serial.print("temp_val");Serial.println(temp_val);
+              Serial.print("pos");Serial.println(pos);
+              Serial.print("jointid");Serial.println(joint_id);
+            }
+          //  else{
+             write_servo(joint_id+1, val1);
+           // }
           }
           // Do something with servoId and position
       }
       // Find the next command in input string
-      command = strtok(0, "&");
+      command = strtok(0, ",");
     }
     serialFlush();
 }
@@ -168,18 +184,19 @@ void loop() {
 //
 //
 if (tune_start){
-    check_ending = 1023 - check_ending;
+
+    check_ending = 1023 - check_ending; // be carefull using this switch actions
     int start_pos1 = map(pot1, 0, 1023, SERVOMIN, SERVOMAX);
     int start_pos2 = map(1023-pot1, 0, 1023, SERVOMIN, SERVOMAX);
 //   Serial.println(start_pos1);
-    int start_pos3 = map(check_ending, 0, 1023, SERVOMIN, SERVOMAX); // for simulating boundary signals
-//    int start_pos3 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);/
+    //int start_pos3 = map(check_ending, 0, 1023, SERVOMIN, SERVOMAX); // for simulating boundary signals
+    int start_pos3 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);
 
     int start_pos4 = map(1023-pot2, 0, 1023, SERVOMIN, SERVOMAX);
-    pwm.writeMicroseconds(left_servo, start_pos1);
-    pwm.writeMicroseconds(right_servo, start_pos2);
-    pwm.writeMicroseconds(2, start_pos3);
-//    pwm.writeMicroseconds(3, start_pos4);
+   // write_servo(left_servo, start_pos1);
+   // write_servo(right_servo, start_pos2);
+    write_servo(3, start_pos1);
+//    write_servo(3, start_pos4);
 //
 //   Serial.print("pot1: ");Serial.println(pot1);
 //   Serial.print("pot2: ");Serial.println(pot2);
@@ -190,20 +207,5 @@ if (tune_start){
    Serial.print("start_pos3: ");Serial.println(start_pos3);
    delay(500);
  }
-
-
-//  Serial.println(val2);
-//  Serial.println(val3);
-//   val1 = map(val1, 0, 1023, SERVOMIN, SERVOMAX);
-//    pwm.writeMicroseconds(0, val1);
-//   val2 = map(val2, 0, 1023, 350, 660);
-//   val3 = map(val3, 0, 1023, 350, 660);
-//
-//   // Drive each servo one at a time using writeMicroseconds(), it's not precise due to calculation rounding!
-//   // The writeMicroseconds() function is used to mimic the Arduino Servo library writeMicroseconds() behavior.
-//
-//   pwm.writeMicroseconds(0, val3);
-//   pwm.writeMicroseconds(1, val1);
-//   pwm.writeMicroseconds(2, val2);
 //
 }
