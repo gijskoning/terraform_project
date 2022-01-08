@@ -1,3 +1,4 @@
+
 # robotic_arm
 
 # Run RL
@@ -15,6 +16,8 @@ First create a virtual environment in this repo using
 `python3 -m venv venv`
 Activate the environment:
 `source venv/bin/activate`
+(Optional) Add to bashrc to always open virtualenv when opening terminal (PATH could be ~/gijs/project)
+echo 'source PATH/venv/bin/activate' >> ~/.bashrc
 Update pip:
 `pip install --upgrade pip`
 `sudo apt-get install build-essential libgtk-3-dev`
