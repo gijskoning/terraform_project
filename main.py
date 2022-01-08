@@ -90,7 +90,6 @@ if __name__ == '__main__':
 
         # F_end can be replaced with RL action. array[2]
         F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
-        print("testtest")
         p, q, dq = robot_arm.move_endpoint_xz(F_end, step)
         t += dt
 
