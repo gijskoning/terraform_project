@@ -29,7 +29,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // for max range. You'll have to tweak them as necessary to match the servos you
 // have!
 #define SERVOMIN  340  // This is the 'minimum' pulse length count (out of 4096)
-#define SERVOMAX  2500 // This is the 'maximum' pulse length count (out of 4096)
+#define SERVOMAX  2510 // This is the 'maximum' pulse length count (out of 4096)
 #define USMIN  600 // This is the rounded 'minimum' microsecond length based on the minimum pulse of 150
 #define USMAX  2400 // This is the rounded 'maximum' microsecond length based on the maximum pulse of 600
 #define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
@@ -46,6 +46,9 @@ int val1;
 int val2;
 int val3;
 
+const int left_servo = 1;
+const int right_servo = 15;
+const int servo_resolution = 200;
 int vals[3];
 // For serial communication with pc
 #define INPUT_SIZE 30
@@ -92,7 +95,6 @@ void setServoPulse(uint8_t n, double pulse) {
   Serial.println(pulse);
   pwm.setPWM(n, 0, pulse);
 }
-const int max_angle = 100;
 
 void serialFlush(){
   while(Serial.available() > 0) {
@@ -109,7 +111,7 @@ void read_and_set_servo(){
     //   Sent commands using 0:0    Which is equal to id:value
     while (command != 0)
     {
-      
+
       // Split the command in two values
       char* separator = strchr(command, ':');
       if (separator != 0)
@@ -120,21 +122,21 @@ void read_and_set_servo(){
           if (servos[joint_id] == 1){
             continue;
           }
-          
+
           servos[joint_id] = 1;
           ++separator;
           int pos = atoi(separator);
 
-          val1 = map(pos, 0, 100, SERVOMIN, SERVOMAX);
+          val1 = map(pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
 //          pwm.writeMicroseconds(joint_id, val1);
           if (joint_id == 0){
             Serial.write(val1);
           }
 //        First joint has two servos. The second one gets a reversed signal.
           if (joint_id == 0){
-             pwm.writeMicroseconds(0, val1);
-             val1 = map(100-pos, 0, 100, SERVOMIN, SERVOMAX);
-             pwm.writeMicroseconds(1, val1);
+             pwm.writeMicroseconds(left_servo, val1); // left servo
+             int right_val = map(servo_resolution-pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
+             pwm.writeMicroseconds(right_servo, right_val); // right servo
           }
           else{
              pwm.writeMicroseconds(joint_id+1, val1);
@@ -148,40 +150,45 @@ void read_and_set_servo(){
 }
 
 int start = 1;
-bool tune_start = false;
+bool tune_start = true;
+int check_ending = 0;
 void loop() {
  if (!tune_start and Serial.available()){
-  
+
   digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
   delay(100);                       // wait for a second
   digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  delay(100);   
-//      read_and_set_servo();
+  delay(100);
+  read_and_set_servo();
  }
- 
+
   int pot1 = analogRead(potpin1);
   int pot2 = analogRead(potpin2);
 //  val3 = analogRead(potpin3);
 //
 //
 if (tune_start){
+    check_ending = 1023 - check_ending;
     int start_pos1 = map(pot1, 0, 1023, SERVOMIN, SERVOMAX);
     int start_pos2 = map(1023-pot1, 0, 1023, SERVOMIN, SERVOMAX);
 //   Serial.println(start_pos1);
-//    int start_pos2 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);
-    int start_pos3 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);
+    int start_pos3 = map(check_ending, 0, 1023, SERVOMIN, SERVOMAX); // for simulating boundary signals
+//    int start_pos3 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);/
 
     int start_pos4 = map(1023-pot2, 0, 1023, SERVOMIN, SERVOMAX);
-    pwm.writeMicroseconds(0, start_pos1);
-    pwm.writeMicroseconds(1, start_pos2);
+    pwm.writeMicroseconds(left_servo, start_pos1);
+    pwm.writeMicroseconds(right_servo, start_pos2);
     pwm.writeMicroseconds(2, start_pos3);
 //    pwm.writeMicroseconds(3, start_pos4);
 //
 //   Serial.print("pot1: ");Serial.println(pot1);
 //   Serial.print("pot2: ");Serial.println(pot2);
+  int q1 = map(pot1, 0, 1023, 0, servo_resolution);
+   Serial.print("q1: ");Serial.println(q1);
 
    Serial.print("start_pos1: ");Serial.println(start_pos1);
    Serial.print("start_pos3: ");Serial.println(start_pos3);
+   delay(500);
  }
 
 

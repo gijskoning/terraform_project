@@ -29,6 +29,7 @@ class ArduinoControl:
         q = self.transform_q(q_global)
         q = q / math.pi * resolution
         q = np.clip(q, 0, resolution)
+        q[0] = np.clip(q[0], 0, 80)
         q = q.astype(int)
         s1, s2, s3 = q
         # self.write_message(f"0:{s1},1:{s2},2:{s3}", debug)
