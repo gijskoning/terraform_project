@@ -6,9 +6,13 @@ import time
 from serial import Serial
 
 
+# for wsl: https://devblogs.microsoft.com/commandline/connecting-usb-devices-to-wsl/
+# sudo chmod 666 /dev/ttyS4
 class ArduinoControl:
 
     def __init__(self, port='COM6'):
+        print("trying port", port)
+
         self.arduino = Serial(port=port, baudrate=115200, timeout=.1)
 
     def set_servo(self, q, debug=False):
@@ -20,13 +24,15 @@ class ArduinoControl:
         q = q.astype(int)
         q = np.clip(q, 0, 100)
         s1, s2, s3 = q.astype(int)
-        # write_read(f"0:{s1},1:{s2},2:{s3}", debug)
+        # self.write_message(f"0:{s1},1:{s2},2:{s3}", debug)
         self.write_message(f"0:{s1},1:{s2}", debug)
 
     def write_message(self, x, debug=False):
         if debug:
             print("Sending: ", x)
-        self.arduino.write(bytes(str(x), 'utf-8'))
+        _bytes = bytes(str(x), 'utf-8')
+        print("Length bytes: ", len(_bytes))
+        self.arduino.write(_bytes)
         time.sleep(0.05)
         data = self.arduino.readline()
         if debug and data is not None:
