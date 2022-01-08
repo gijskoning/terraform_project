@@ -58,7 +58,7 @@ if __name__ == '__main__':
     arduino_control = None
     if arduino:
         try:
-            arduino_control = ArduinoControl(port=port)
+            arduino_control = ArduinoControl()
         except IOError as e:
             print(e)
     print("arduino_control",arduino_control)
