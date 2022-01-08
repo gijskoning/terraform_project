@@ -12,10 +12,11 @@ from gym_robotic_arm.constants import MIN_CONFIG_SERVO
 
 class ArduinoControl:
 
-    def __init__(self, port='COM6'):
+    def __init__(self, port='COM6', do_not_send=False):
         print("trying port", port)
 
         self.arduino = Serial(port=port, baudrate=115200, timeout=.1)
+        self.do_not_send = do_not_send
 
     def transform_q(self, q):
         # For specific configuration
@@ -49,13 +50,15 @@ class ArduinoControl:
             print("Sending: ", x)
         _bytes = bytes(str(x), 'utf-8')
         print("Length bytes: ", len(_bytes))
-        self.arduino.write(_bytes)
-        time.sleep(0.05)
-        data = self.arduino.readlines()
-        if debug and data is not None:
-            for line in data:
-                print("data:", line)
-        return data
+        if not self.do_not_send:
+            self.arduino.write(_bytes)
+            time.sleep(0.05)
+            data = self.arduino.readlines()
+            if debug and data is not None:
+                for line in data:
+                    print("data:", line)
+            return data
+        return None
 
     # while True:
     #     num = input("Enter a number: ") # Taking input from user
@@ -77,3 +80,9 @@ if __name__ == '__main__':
     # test code
     arduino_control = ArduinoControl()
     arduino_control.sent_action("test")
+# Sending:  0:80,1:29,2:0
+# Length bytes:  13
+# data: b'command0:80\r\n'
+# data: b'temp_val2510\r\n'
+# data: b'pos0\r\n'
+# data: b'jointid2\r\n'

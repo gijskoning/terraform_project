@@ -135,8 +135,25 @@ class RobotArm3dof:
         # self.dq = dq
         self.end_p = self.FK_end_p()
         if iteration % 100 == 0:
-            q_temp = -self.q + MIN_CONFIG_SERVO
-            print("q that will be sent", q_temp)
+            def transform_q(q):
+                # For specific configuration
+                return -q + MIN_CONFIG_SERVO
+
+            def cap_angles(q):
+                # For specific configuration
+                q = q.copy()
+                q[0] = np.clip(q[0], 0, 80)
+                return q
+            resolution = 200
+            q = transform_q(self.q)
+            q = q / math.pi * resolution
+            q = np.clip(q, 0, resolution)
+
+            q = cap_angles(q)
+
+            q = q.astype(int)
+            # q_temp = -self.q + MIN_CONFIG_SERVO
+            print("q that will be sent", q)
 
         if self.arduino_control is not None:
 
