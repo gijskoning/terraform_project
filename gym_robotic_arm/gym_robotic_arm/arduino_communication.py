@@ -25,7 +25,7 @@ class ArduinoControl:
     def cap_angles(self, q):
         # For specific configuration
         q = q.copy()
-        q[0] = np.clip(q[0], 0, 80)
+        # q[0] = np.clip(q[0], 0, 80)
         return q
 
     def set_servo(self, q_global, debug=False):

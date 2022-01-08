@@ -135,6 +135,7 @@ class RobotArm3dof:
         # self.dq = dq
         self.end_p = self.FK_end_p()
         if iteration % 100 == 0:
+            # this is temporary and not using the arduino code!
             def transform_q(q):
                 # For specific configuration
                 return -q + MIN_CONFIG_SERVO
