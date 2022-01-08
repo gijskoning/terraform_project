@@ -53,7 +53,8 @@ class ArduinoControl:
         time.sleep(0.05)
         data = self.arduino.readlines()
         if debug and data is not None:
-            print("data:", data)
+            for line in data:
+                print("data:", data)
         return data
 
     # while True:
