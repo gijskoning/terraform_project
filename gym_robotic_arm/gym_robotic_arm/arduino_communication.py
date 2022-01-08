@@ -51,7 +51,7 @@ class ArduinoControl:
         print("Length bytes: ", len(_bytes))
         self.arduino.write(_bytes)
         time.sleep(0.05)
-        data = self.arduino.readline()
+        data = self.arduino.readlines()
         if debug and data is not None:
             print("data:", data)
         return data
