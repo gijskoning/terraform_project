@@ -196,7 +196,7 @@ void loop() {
       if (!reset and millis() - last_command_milli > reset_time_sec*1000){
         Serial.println("reset: ");
         set_joints(reset_q);
-        delay(1000);
+        delay(2000);
         turn_off_joints();
         reset=true;
       }
