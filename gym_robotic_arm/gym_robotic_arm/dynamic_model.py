@@ -4,7 +4,9 @@ import math
 from numpy import sin, cos
 
 from gym_robotic_arm.sim_utils import arm_to_polygon, check_collision
-from gym_robotic_arm.constants import ARMS_LENGTHS, ARM_WIDTH, INITIAL_CONFIG_SERVO, CONTROL_DT
+from gym_robotic_arm.constants import ARMS_LENGTHS, ARM_WIDTH, CONTROL_DT
+
+from gym_robotic_arm.constants import MIN_CONFIG_SERVO
 
 
 class RobotArm3dof:
@@ -133,12 +135,15 @@ class RobotArm3dof:
         # self.dq = dq
         self.end_p = self.FK_end_p()
         if self.arduino_control is not None:
+
             # Move angles
             # Todo this code should move to arduino class
             if iteration % 100 == 0:
-                print("q-INITIAL_CONFIG_Q", self.q - INITIAL_CONFIG_SERVO)
-                print("INITIAL_CONFIG_Q", INITIAL_CONFIG_SERVO)
-                q_temp = ((self.q - INITIAL_CONFIG_SERVO) * 100).astype(int)
+                print("q", self.q - MIN_CONFIG_SERVO)
+
+                # print("q-INITIAL_CONFIG_Q", self.q - INITIAL_CONFIG_SERVO)
+                # print("INITIAL_CONFIG_Q", INITIAL_CONFIG_SERVO)
+                # q_temp = ((self.q - INITIAL_CONFIG_SERVO) * 100).astype(int)
                 # q_temp = (q * 100).astype(int)
                 # sent_action(f"0:{q_temp[0]}")
                 # sent_action(f"0:{q_temp[0]},1:{-q_temp[1]},2:{q_temp[2]}")

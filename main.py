@@ -4,7 +4,6 @@ import pygame
 from pygame import K_RIGHT, K_LEFT, K_UP, K_DOWN
 
 from gym_robotic_arm.constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, ARM_WIDTH, \
-    INITIAL_CONFIG_SERVO, \
     CONTROL_DT
 
 from gym_robotic_arm.dynamic_model import RobotArm3dof, PIDController
@@ -56,12 +55,13 @@ def cap_goal(goal):
 if __name__ == '__main__':
     arduino = True
     arduino_control = None
+    arduino_port = 'ttyUSB0'  # Ubuntu desktop bottom right
     if arduino:
         try:
-            arduino_control = ArduinoControl()
+            arduino_control = ArduinoControl(port=arduino_port)
         except IOError as e:
             print(e)
-    print("arduino_control",arduino_control)
+    print("arduino_control", arduino_control)
     robot_base = np.array([0, ZERO_POS_BASE])
     local_endp_start = np.array([0.3, 0])
 

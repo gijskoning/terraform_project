@@ -8,6 +8,9 @@ from serial import Serial
 
 # for wsl: https://devblogs.microsoft.com/commandline/connecting-usb-devices-to-wsl/
 # sudo chmod 666 /dev/ttyS4
+from gym_robotic_arm.constants import MIN_CONFIG_SERVO
+
+
 class ArduinoControl:
 
     def __init__(self, port='COM6'):
@@ -15,14 +18,16 @@ class ArduinoControl:
 
         self.arduino = Serial(port=port, baudrate=115200, timeout=.1)
 
-    def set_servo(self, q, debug=False):
+    def set_servo(self, q_global, debug=False):
         """
         :param q: numpy array for each joint angle
         :return:
         """
-        q = q / math.pi * 100
+        resolution = 200
+        q = q_global - MIN_CONFIG_SERVO
+        q = q / math.pi * resolution
         q = q.astype(int)
-        q = np.clip(q, 0, 100)
+        q = np.clip(q, 0, resolution)
         s1, s2, s3 = q.astype(int)
         # self.write_message(f"0:{s1},1:{s2},2:{s3}", debug)
         self.write_message(f"0:{s1},1:{s2}", debug)
