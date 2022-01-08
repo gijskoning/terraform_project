@@ -14,4 +14,4 @@ INITIAL_CONFIG_Q = np.array([0.1, -np.pi * 0.1, np.pi * 0.3])  # Initial robot a
 # INITIAL_CONFIG_SERVO = np.array([np.pi*0.5, 0., np.pi * 0.5]) # Initial robot angles
 SERVO_OFFSET_MANUAL_VS_POWER = 0.1
 # These angles are the start positions of the servo in global frame
-MIN_CONFIG_SERVO = np.array([np.pi * 1, -np.pi*0.15, np.pi * 0.35])
+MIN_CONFIG_SERVO = np.array([np.pi * 1.1, -np.pi*0.15, np.pi * 0.35])

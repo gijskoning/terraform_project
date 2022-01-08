@@ -51,7 +51,13 @@ const int right_servo = 15;
 const int servo_resolution = 200;
 
 bool execute_servo = true; // when false doesnt execute servos
-bool servo_enabled[4] = {true,true,true,true};
+const int joints = 3;
+bool servo_enabled[4] = {true,true,true,true}; // keeo in mind first 2 servos are joint 1
+bool servo_reversed[4] = {true,false,false,true};
+const int reset_time_sec = 3;
+int reset_q[3] = {190,0,80}; // constant value
+bool reset= false;
+int last_joint_command[3] = {-1,-1,-1};
 int vals[3];
 // For serial communication with pc
 #define INPUT_SIZE 30
@@ -105,11 +111,40 @@ void serialFlush(){
   }
 }
 void write_servo(int servo_id, int val){
+  reset = false;
+  if (servo_reversed[servo_id]){
+    val = servo_resolution-val;
+  }
+  int pulse = map(val, 0, servo_resolution, SERVOMIN, SERVOMAX);
   if (execute_servo and servo_enabled[servo_id]){
-    pwm.writeMicroseconds(servo_id, val);
+    pwm.writeMicroseconds(servo_id, pulse);
   }
 }
-void read_and_set_servo(){
+void set_joints(int vals[joints]){
+  for (int joint_id = 0; joint_id <= joints; joint_id++) {
+
+    int val = vals[joint_id];
+    Serial.print("val");Serial.println(val);
+    if (val == -1){
+
+      continue;
+    }
+ //First joint has two servos. The second one gets a reversed signal.
+    if (joint_id == 0){
+       write_servo(left_servo, val); // left servo
+       write_servo(right_servo, val); // right servo
+    }
+    else{
+       write_servo(joint_id+1, val);
+    }
+  }
+}
+void turn_off_joints(){
+  for (int servo_id = 0; servo_id <= joints+1; servo_id++) {
+    pwm.writeMicroseconds(servo_id, 0);
+  }
+}
+void read_command(int* joint_vals){
     int servos[3] = {0,0,0};
     char * pch;
     byte size = Serial.readBytes(input, INPUT_SIZE);
@@ -127,40 +162,14 @@ void read_and_set_servo(){
           // Actually split the string in 2: replace ':' with 0
           *separator = 0;
           int joint_id = atoi(command);
+          // avoid sending multiple commands to same servo
           if (servos[joint_id] == 1){
             continue;
+          }else{
+            servos[joint_id] = 1;
           }
-
-          servos[joint_id] = 1;
           ++separator;
-          int pos = atoi(separator);
-
-          val1 = map(pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
-//          write_servo(joint_id, val1);
-
-
-//        First joint has two servos. The second one gets a reversed signal.
-          if (joint_id == 0){
-             write_servo(left_servo, val1); // left servo
-             int right_val = map(servo_resolution-pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
-             write_servo(right_servo, right_val); // right servo
-          }
-          else{
-            if (joint_id == 2){ // revert third joint angle
-              int reversed_pos = servo_resolution -pos;
-              int temp_val = map(reversed_pos, 0, servo_resolution, SERVOMIN, SERVOMAX);
-              write_servo(joint_id+1, temp_val);
-
-              Serial.print("reversed_pos");Serial.println(reversed_pos);
-              Serial.print("temp_val");Serial.println(temp_val);
-              Serial.print("pos");Serial.println(pos);
-              Serial.print("jointid");Serial.println(joint_id);
-            }
-            else{
-             write_servo(joint_id+1, val1);
-           }
-          }
-          // Do something with servoId and position
+          joint_vals[joint_id] = atoi(separator);
       }
       // Find the next command in input string
       command = strtok(0, ",");
@@ -171,16 +180,28 @@ void read_and_set_servo(){
 int start = 1;
 bool tune_start = false;
 int check_ending = 0;
+unsigned long last_command_milli = millis() - reset_time_sec*1000;
+int joint_vals[joints];
 void loop() {
- if (!tune_start and Serial.available()){
+  if (!tune_start){
+    if(Serial.available()){
 
-  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(100);                       // wait for a second
-  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  delay(100);
-  read_and_set_servo();
- }
-
+      int joint_vals[joints] = {-1,-1,-1};
+      read_command(joint_vals);
+      Serial.print("joint_vals: ");Serial.println(joint_vals[0]);
+      set_joints(joint_vals);
+      last_command_milli = millis();
+    }
+    else{
+      if (!reset and millis() - last_command_milli > reset_time_sec*1000){
+        Serial.println("reset: ");
+        set_joints(reset_q);
+        delay(1000);
+        turn_off_joints();
+        reset=true;
+      }
+    }
+  }
   int pot1 = analogRead(potpin1);
   int pot2 = analogRead(potpin2);
 //  val3 = analogRead(potpin3);
@@ -191,25 +212,18 @@ if (tune_start){
     check_ending = 1023 - check_ending; // be carefull using this switch actions
 
     int q1 = map(pot1, 0, 1023, 0, servo_resolution);
-    Serial.print("reversed q1: ");Serial.println(servo_resolution-q1);
-    Serial.print("normal q1: ");Serial.println(q1);
-    int start_pos1 = map(q1, 0, servo_resolution, SERVOMIN, SERVOMAX);
-    int start_pos2 = map(1023-pot1, 0, 1023, SERVOMIN, SERVOMAX);
+    int q2 = map(pot2, 0, 1023, 0, servo_resolution);
 //   Serial.println(start_pos1);
     //int start_pos3 = map(check_ending, 0, 1023, SERVOMIN, SERVOMAX); // for simulating boundary signals
-    int start_pos3 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);
 
-    int start_pos4 = map(1023-pot2, 0, 1023, SERVOMIN, SERVOMAX);
-   // write_servo(left_servo, start_pos1);
-   // write_servo(right_servo, start_pos2);
-    write_servo(3, 340);
+    write_servo(3, q1);
 //    write_servo(3, start_pos4);
 //
 //   Serial.print("pot1: ");Serial.println(pot1);
 //   Serial.print("pot2: ");Serial.println(pot2);
 
-   Serial.print("start_pos1: ");Serial.println(start_pos1);
-   Serial.print("start_pos3: ");Serial.println(start_pos3);
+   Serial.print("q1: ");Serial.println(q1);
+   Serial.print("q2: ");Serial.println(q2);
    delay(500);
  }
 //
