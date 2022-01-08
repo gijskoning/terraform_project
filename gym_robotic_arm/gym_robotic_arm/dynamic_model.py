@@ -142,12 +142,13 @@ class RobotArm3dof:
             def cap_angles(q):
                 # For specific configuration
                 q = q.copy()
-                q[0] = np.clip(q[0], 0, 80)
+                # q[0] = np.clip(q[0], 0, 200)
                 return q
             resolution = 200
             q = transform_q(self.q)
             q = q / math.pi * resolution
             q = np.clip(q, 0, resolution)
+            print("q temp", q)
 
             q = cap_angles(q)
 

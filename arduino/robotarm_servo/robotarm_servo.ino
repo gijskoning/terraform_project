@@ -191,6 +191,8 @@ if (tune_start){
     check_ending = 1023 - check_ending; // be carefull using this switch actions
 
     int q1 = map(pot1, 0, 1023, 0, servo_resolution);
+    Serial.print("reversed q1: ");Serial.println(servo_resolution-q1);
+    Serial.print("normal q1: ");Serial.println(q1);
     int start_pos1 = map(q1, 0, servo_resolution, SERVOMIN, SERVOMAX);
     int start_pos2 = map(1023-pot1, 0, 1023, SERVOMIN, SERVOMAX);
 //   Serial.println(start_pos1);
@@ -200,7 +202,7 @@ if (tune_start){
     int start_pos4 = map(1023-pot2, 0, 1023, SERVOMIN, SERVOMAX);
    // write_servo(left_servo, start_pos1);
    // write_servo(right_servo, start_pos2);
-    write_servo(3, start_pos1);
+    write_servo(3, 340);
 //    write_servo(3, start_pos4);
 //
 //   Serial.print("pot1: ");Serial.println(pot1);
