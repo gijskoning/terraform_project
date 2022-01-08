@@ -41,8 +41,8 @@ class ArduinoControl:
 
         q = q.astype(int)
         s1, s2, s3 = q
-        # self.write_message(f"0:{s1},1:{s2},2:{s3}", debug)
-        self.write_message(f"0:{s1},1:{s2}", debug)
+        self.write_message(f"0:{s1},1:{s2},2:{s3}", debug)
+        # self.write_message(f"0:{s1},1:{s2}", debug)
 
     def write_message(self, x, debug=False):
         if debug:
