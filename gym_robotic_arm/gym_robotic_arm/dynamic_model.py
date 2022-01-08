@@ -3,28 +3,27 @@ import math
 
 from numpy import sin, cos
 
-from arduino_communication import ArduinoControl
-from sim_utils import arm_to_polygon, check_collision
-from visualization_util import draw_rectangle_from_config
-from constants import ARMS_LENGTHS, ARM_WIDTH, INITIAL_CONFIG_SERVO, CONTROL_DT
+from gym_robotic_arm.sim_utils import arm_to_polygon, check_collision
+from gym_robotic_arm.constants import ARMS_LENGTHS, ARM_WIDTH, INITIAL_CONFIG_SERVO, CONTROL_DT
 
 
 class RobotArm3dof:
 
-    def __init__(self, l, reset_q=None, arduino_control: ArduinoControl = None, dt=CONTROL_DT):
+    def __init__(self, l, reset_q=None, arduino_control=None, dt=CONTROL_DT):
         self.l = l  # link length
         if reset_q is not None:
             self.reset_q = reset_q.copy()
         else:
             self.reset_q = np.array([0.0, 0.0, 0.0])
         self.q = self.reset_q.copy()  # joint position
-        self.dq = np.array([0.0, 0.0, 0.0])  # joint velocity
+        # self.dq = np.array([0.0, 0.0, 0.0])  # joint velocity
         self.tau = np.array([0.0, 0.0, 0.0])  # joint torque
         self.lambda_coeff = 0.001  # coefficient for robustness of singularity positions
 
         self.arduino_control = arduino_control
         self.dt = dt
-
+        self.end_p = np.zeros(2)  # end effector position (x,z)
+        self.reset()
         # For visualization
         self.arm_regions = []
 
@@ -50,7 +49,7 @@ class RobotArm3dof:
         return J
 
     # forward kinematics (until the end of the chain, i.e., primary endpoint)
-    def FK4_all(self, other_q=None):
+    def FK_all_points(self, other_q=None):
         l = self.l
         q = self.q
         if other_q is not None:
@@ -61,7 +60,7 @@ class RobotArm3dof:
         return np.array([p1, p2, p3])
 
     def FK_end_p(self):
-        return self.FK4_all()[2]
+        return self.FK_all_points()[2]
 
     # Jacobian matrix (until the end of the chain, i.e., primary endpoint)
     def Jacobian4(self):
@@ -90,7 +89,7 @@ class RobotArm3dof:
     # state change
     def _set_state(self, q, dq):
         self.q = q
-        self.dq = dq
+        # self.dq = dq
 
     def get_dq(self, F):
         """"
@@ -131,9 +130,8 @@ class RobotArm3dof:
 
         dq = self.constraint(dq)
         self.q += dq * self.dt
-        self.dq = dq
-        p = self.FK_end_p()
-
+        # self.dq = dq
+        self.end_p = self.FK_end_p()
         if self.arduino_control is not None:
             # Move angles
             # Todo this code should move to arduino class
@@ -145,20 +143,23 @@ class RobotArm3dof:
                 # sent_action(f"0:{q_temp[0]}")
                 # sent_action(f"0:{q_temp[0]},1:{-q_temp[1]},2:{q_temp[2]}")
                 # sent_action(f"0:{q[0]},1:{q[1]},2:{q[2]},3:{sent}")
-                self.arduino_control.sent_action(self.q)
+                self.arduino_control.sent_action(self.q, debug=True)
 
-        return p, self.q, dq
+        return self.end_p, self.q, dq
 
     def reset(self, joint_angles=None):
         if joint_angles is None:
             self.q = self.reset_q.copy()
         else:
             self.q = joint_angles.copy()
+
+        self.end_p = np.zeros(2)
+
         if self.arduino_control is not None:
             self.arduino_control.sent_action(self.q)
 
     def constraint(self, dq):
-        global_pos_constraint_lb = [0.01, -0.1]
+        global_pos_constraint_lb = [0.01, -0.1] # lower bound global constraint
         p = np.zeros(2)
         self.arm_regions = []
 
@@ -175,29 +176,22 @@ class RobotArm3dof:
 
         for i in range(len(dq)):
             new_q = self.q + dq * self.dt
-            joint_pos_new = self.FK4_all(new_q)
+            joint_positions_new = self.FK_all_points(new_q)
 
             # Global constraint check
-            if np.any(joint_pos_new < global_pos_constraint_lb):
+            if np.any(joint_positions_new < global_pos_constraint_lb):
                 dq[i] = 0
             # Check collision with itself
             if i > 0:
-                p = joint_pos_new[i - 1].copy()
-            if not check_collision(create_obstacles(joint_pos_new, new_q)):
+                p = joint_positions_new[i - 1].copy()
+            if not check_collision(create_obstacles(joint_positions_new, new_q)):
                 dq[i] = 0
 
             l = ARMS_LENGTHS[i]
             pol = arm_to_polygon(*p, np.sum(self.q[:i + 1]), l, ARM_WIDTH)
             self.arm_regions.append(pol)
-            # if np.any(joint_pos_new < global_pos_constraint_lb):
-            #     dq[i] = 0
 
         return dq
-
-    def debug_visualization(self, robot_base):
-        for pol in self.arm_regions:
-            pol = [xy + robot_base for xy in pol]
-            draw_rectangle_from_config(pol)
 
 
 class PIDController:

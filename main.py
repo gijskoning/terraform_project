@@ -3,13 +3,18 @@ import numpy as np
 import pygame
 from pygame import K_RIGHT, K_LEFT, K_UP, K_DOWN
 
-from constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, ARM_WIDTH, INITIAL_CONFIG_SERVO, \
+from gym_robotic_arm.constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, ARM_WIDTH, \
+    INITIAL_CONFIG_SERVO, \
     CONTROL_DT
-from dynamic_model import RobotArm3dof, PIDController
+
+from gym_robotic_arm.dynamic_model import RobotArm3dof, PIDController
+from serial import SerialException
+
 from sim_utils import length, config_to_polygon_pygame, check_collision, config_to_polygon, arm_to_polygon
 from visualization_util import draw_rectangle_from_config, DISPLAY
 from visualize_robot_arm import Display
-from arduino_communication import ArduinoControl
+from gym_robotic_arm.arduino_communication import ArduinoControl
+
 dt = CONTROL_DT
 # ROBOT     PARAMETERS
 x0 = 0.0  # base x position
@@ -49,11 +54,14 @@ def cap_goal(goal):
 
 
 if __name__ == '__main__':
-    arduino = False
+    arduino = True
     arduino_control = None
     if arduino:
-        arduino_control = ArduinoControl()
-
+        try:
+            arduino_control = ArduinoControl(port=port)
+        except IOError as e:
+            print(e)
+    print("arduino_control",arduino_control)
     robot_base = np.array([0, ZERO_POS_BASE])
     local_endp_start = np.array([0.3, 0])
 
@@ -84,11 +92,12 @@ if __name__ == '__main__':
         F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
 
         p, q, dq = robot_arm.move_endpoint_xz(F_end, step)
-
         t += dt
 
         # Render
-        robot_arm.debug_visualization(robot_base)
+        for pol in robot_arm.arm_regions:
+            pol = [xy + robot_base for xy in pol]
+            draw_rectangle_from_config(pol)
         # save state
         state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], p[0], p[1]])
 

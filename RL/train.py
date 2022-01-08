@@ -286,7 +286,7 @@ def main(_args=None):
 
     # make directory
     ts = time.gmtime()
-    ts = time.strftime("%m-%d", ts)
+    ts = time.strftime("%m-%d-%H", ts)
     if args.task_name is None:
         env_name = args.domain_name
     else:
@@ -316,8 +316,8 @@ def main(_args=None):
     with open(os.path.join(args.work_dir, 'args.json'), 'w') as f:
         json.dump(vars(args), f, sort_keys=True, indent=4)
 
-    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cpu')
 
     action_shape = env.action_space.shape
 

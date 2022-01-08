@@ -28,7 +28,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // want these to be as small/large as possible without hitting the hard stop
 // for max range. You'll have to tweak them as necessary to match the servos you
 // have!
-#define SERVOMIN  330  // This is the 'minimum' pulse length count (out of 4096)
+#define SERVOMIN  340  // This is the 'minimum' pulse length count (out of 4096)
 #define SERVOMAX  2500 // This is the 'maximum' pulse length count (out of 4096)
 #define USMIN  600 // This is the rounded 'minimum' microsecond length based on the minimum pulse of 150
 #define USMAX  2400 // This is the rounded 'maximum' microsecond length based on the maximum pulse of 600
@@ -73,7 +73,7 @@ void setup() {
    */
   pwm.setOscillatorFrequency(27000000);
   pwm.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
-
+  pinMode(LED_BUILTIN, OUTPUT);
   delay(10);
 }
 
@@ -94,7 +94,14 @@ void setServoPulse(uint8_t n, double pulse) {
 }
 const int max_angle = 100;
 
+void serialFlush(){
+  while(Serial.available() > 0) {
+    char t = Serial.read();
+  }
+}
+
 void read_and_set_servo(){
+    int servos[3] = {0,0,0};
     char * pch;
     byte size = Serial.readBytes(input, INPUT_SIZE);
     input[size] = 0;
@@ -102,6 +109,7 @@ void read_and_set_servo(){
     //   Sent commands using 0:0    Which is equal to id:value
     while (command != 0)
     {
+      
       // Split the command in two values
       char* separator = strchr(command, ':');
       if (separator != 0)
@@ -109,6 +117,11 @@ void read_and_set_servo(){
           // Actually split the string in 2: replace ':' with 0
           *separator = 0;
           int joint_id = atoi(command);
+          if (servos[joint_id] == 1){
+            continue;
+          }
+          
+          servos[joint_id] = 1;
           ++separator;
           int pos = atoi(separator);
 
@@ -131,14 +144,21 @@ void read_and_set_servo(){
       // Find the next command in input string
       command = strtok(0, "&");
     }
+    serialFlush();
 }
 
 int start = 1;
-bool tune_start = true;
+bool tune_start = false;
 void loop() {
  if (!tune_start and Serial.available()){
-      read_and_set_servo();
+  
+  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(100);                       // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  delay(100);   
+//      read_and_set_servo();
  }
+ 
   int pot1 = analogRead(potpin1);
   int pot2 = analogRead(potpin2);
 //  val3 = analogRead(potpin3);
@@ -147,15 +167,23 @@ void loop() {
 if (tune_start){
     int start_pos1 = map(pot1, 0, 1023, SERVOMIN, SERVOMAX);
     int start_pos2 = map(1023-pot1, 0, 1023, SERVOMIN, SERVOMAX);
-   Serial.println(start_pos1);
+//   Serial.println(start_pos1);
 //    int start_pos2 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);
     int start_pos3 = map(pot2, 0, 1023, SERVOMIN, SERVOMAX);
+
+    int start_pos4 = map(1023-pot2, 0, 1023, SERVOMIN, SERVOMAX);
     pwm.writeMicroseconds(0, start_pos1);
     pwm.writeMicroseconds(1, start_pos2);
     pwm.writeMicroseconds(2, start_pos3);
+//    pwm.writeMicroseconds(3, start_pos4);
+//
+//   Serial.print("pot1: ");Serial.println(pot1);
+//   Serial.print("pot2: ");Serial.println(pot2);
+
+   Serial.print("start_pos1: ");Serial.println(start_pos1);
+   Serial.print("start_pos3: ");Serial.println(start_pos3);
  }
 
-   Serial.println(pot1);
 
 //  Serial.println(val2);
 //  Serial.println(val3);

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import copy
 import math
 
-import RL.utils
+import RL.utils as utils
 from RL.encoder import make_encoder
 import RL.data_augs as rad
 

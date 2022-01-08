@@ -21,8 +21,11 @@ Update pip:
 Install requirements
 `pip install -r requirements.txt`
 ## Installing pytorch and mujoco
-`python -m pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 -f https://download.pytorch.org/whl/torch_stable.html`
-`pip install mujoco-py<2.2,>=2.1`
+`python -m pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 -f https://download.pytorch.org/whl/torch_stable.html`  
+https://github.com/openai/mujoco-py  
+`wget https://mujoco.org/download/mujoco210-linux-x86_64.tar.gz`
+
+`pip install mujoco-py<2.2,>=2.1`  
 ## Installing kinect
 Need libusb: sudo apt-get install libusb-1.0-0-dev
 Install libfreenect:
@@ -46,9 +49,23 @@ git clone https://github.com/amiller/libfreenect-goodies.git
 cd libfreenect-goodies/
 ```
 ## Install robotic arm environment
-pip install -e ./robotic_arm_env/
+Also needs to be used after updating the code
+`pip install -e ./gym-robotic_arm/`
 
 ## arduino
 Install pwm servo driver: https://forum.arduino.cc/t/adafruit-pwm-servo-driver-exists-but-does-not-see/509542
 You need to add the Adafruit PWM Servo driver library. Go into the Library Manager and search for it.
 Sketch --> Include Library -->Manage Libraries
+## Setup Com port on wsl2
+ https://devblogs.microsoft.com/commandline/connecting-usb-devices-to-wsl/
+To attach busid. Restart wsl. Sent random file to the com port using arduino ide. Than run the command.
+Check device is visible in ubuntu: `lsusb`
+Enable permissions in ubuntu to access: `sudo chmod 666 /dev/tty3`
+## Install cuda on ubuntu
+https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local
+# Errors
+If you get `cannot import name 'Serial' from 'serial' ` do  
+  ```
+  python -m pip uninstall serial
+  python -m pip install pyserial  
+  ```

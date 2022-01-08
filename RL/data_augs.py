@@ -272,8 +272,8 @@ if __name__ == '__main__':
 
     x = np.load('data_sample.npy', allow_pickle=True)
     x = np.concatenate([x, x, x], 1)
-    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cpu')
 
     x = torch.from_numpy(x).to(device)
     x = x.float() / 255.
