@@ -29,7 +29,7 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // for max range. You'll have to tweak them as necessary to match the servos you
 // have!
 #define SERVOMIN  340  // This is the 'minimum' pulse length count (out of 4096)
-#define SERVOMAX  2510 // This is the 'maximum' pulse length count (out of 4096)
+#define SERVOMAX  2505 // This is the 'maximum' pulse length count (out of 4096)
 #define USMIN  600 // This is the rounded 'minimum' microsecond length based on the minimum pulse of 150
 #define USMAX  2400 // This is the rounded 'maximum' microsecond length based on the maximum pulse of 600
 #define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
@@ -46,14 +46,14 @@ int val1;
 int val2;
 int val3;
 
-const int left_servo = 1;
-const int right_servo = 15;
+const int left_servo = 15;
+const int right_servo = 1;
 const int servo_resolution = 200;
 
 bool execute_servo = true; // when false doesnt execute servos
 const int joints = 3;
 bool servo_enabled[4] = {true,true,true,true}; // keeo in mind first 2 servos are joint 1
-bool servo_reversed[4] = {true,false,false,true};
+bool servo_reversed[4] = {true,false,true,false};
 const int reset_time_sec = 3;
 int reset_q[3] = {190,0,80}; // constant value
 bool reset= false;

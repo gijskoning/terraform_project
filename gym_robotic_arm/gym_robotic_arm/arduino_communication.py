@@ -34,7 +34,9 @@ class ArduinoControl:
         :return:
         """
         resolution = 200
+        print("q_global", q_global)
         q = self.transform_q(q_global)
+        print("q", q)
         q = q / math.pi * resolution
         q = np.clip(q, 0, resolution)
 
