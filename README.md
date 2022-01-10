@@ -53,7 +53,7 @@ cd libfreenect-goodies/
 ```
 ## Install robotic arm environment
 Also needs to be used after updating the code
-`pip install -e ./gym-robotic_arm/`
+`pip install -e ./gym_robotic_arm/`
 
 ## arduino
 Install pwm servo driver: https://forum.arduino.cc/t/adafruit-pwm-servo-driver-exists-but-does-not-see/509542

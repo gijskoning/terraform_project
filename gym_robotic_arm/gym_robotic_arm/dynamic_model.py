@@ -186,7 +186,7 @@ class RobotArm3dof:
             self.arduino_control.sent_action(self.q)
 
     def constraint(self, dq):
-        global_pos_constraint_lb = [0.01, -0.1] # lower bound global constraint
+        global_pos_constraint_lb = [-10, -0.1] # lower bound global constraint
         p = np.zeros(2)
         self.arm_regions = []
 
@@ -202,7 +202,7 @@ class RobotArm3dof:
             return obstacles
         new_q = self.q + dq * self.dt
         # Check for base arm to not hit the base
-        if new_q[0] < 0.05:
+        if new_q[0] < 0.5*np.pi:
             dq[0] = 0
         # Other checks on all arms
         for i in range(len(dq)):
