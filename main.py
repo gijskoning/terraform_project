@@ -51,11 +51,24 @@ def cap_goal(goal):
         return shorter_local_goal + robot_base
     return goal
 
+def gripperControl(goal):
+    pygame.event.get()  # refresh keys
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_q]:
+        goal[0] -= 1
+    if keys[pygame.K_e]:
+        goal[0] += 1
+    if keys[pygame.K_a]:
+        goal[1] -= 1
+    if keys[pygame.K_d]:
+        goal[1] += 1
+    return goal
+
 
 if __name__ == '__main__':
     arduino = True
     arduino_control = None
-    arduino_port = '/dev/ttyUSB0'  # Ubuntu desktop bottom right
+    arduino_port = 'COM4'  # Ubuntu desktop bottom right
     do_not_send = False
     if arduino:
         try:
@@ -68,7 +81,6 @@ if __name__ == '__main__':
     robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q, arduino_control=arduino_control)
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
-
     controller = PIDController(kp=15, ki=0.1, kd=0.1)
 
     t = 0.0  # time
@@ -77,11 +89,15 @@ if __name__ == '__main__':
     p = robot_base + local_endp_start
     goal = robot_base + local_endp_start
 
+    gripper = [100,100]
+
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
     step = 0
     sent = 2
     while True:
         display.render(q, goal)
+
+        gripper = gripperControl(gripper)
 
         goal = keyboard_control(dt, goal)
         goal = cap_goal(goal)
@@ -91,7 +107,7 @@ if __name__ == '__main__':
 
         # F_end can be replaced with RL action. array[2]
         F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
-        p, q, dq = robot_arm.move_endpoint_xz(F_end, step)
+        p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper, step)
         t += dt
 
         # Render

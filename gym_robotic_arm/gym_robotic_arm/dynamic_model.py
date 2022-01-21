@@ -124,7 +124,7 @@ class RobotArm3dof:
 
         return dq
 
-    def move_endpoint_xz(self, F, iteration=0):
+    def move_endpoint_xz(self, F, gripper, iteration=0,):
         """"
         F: float[2] the endpoint movement (x,z)
         """
@@ -170,6 +170,7 @@ class RobotArm3dof:
                 # sent_action(f"0:{q_temp[0]}")
                 # sent_action(f"0:{q_temp[0]},1:{-q_temp[1]},2:{q_temp[2]}")
                 # sent_action(f"0:{q[0]},1:{q[1]},2:{q[2]},3:{sent}")
+                self.arduino_control.gripper = gripper
                 self.arduino_control.sent_action(self.q, debug=True)
 
         return self.end_p, self.q, dq
