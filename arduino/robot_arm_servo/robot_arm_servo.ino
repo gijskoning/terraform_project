@@ -45,20 +45,23 @@ int potpin3 = 2;
 int val1;
 int val2;
 int val3;
+int val4;
+int val5;
 
-const int left_servo = 15;
-const int right_servo = 1;
+
+
 const int servo_resolution = 200;
 
 bool execute_servo = true; // when false doesnt execute servos
-const int joints = 3;
-bool servo_enabled[4] = {true,true,true,true}; // keeo in mind first 2 servos are joint 1
-bool servo_reversed[4] = {true,false,true,false};
+const int joints = 5;
+bool servo_enabled[6] = {true,true,true,true,true,true}; // keeo in mind first 2 servos are joint 1
+bool servo_reversed[6] = {false,true,false,true,false,false};
+int servo_pins[6] = {2,0,4,6,8,10};
 const int reset_time_sec = 3;
-int reset_q[3] = {190,0,80}; // constant value
+int reset_q[5] = {190,0,80,90,90}; // constant value
 bool reset= false;
-int last_joint_command[3] = {-1,-1,-1};
-int vals[3];
+int last_joint_command[5] = {-1,-1,-1,-1,-1};
+int vals[5];
 // For serial communication with pc
 #define INPUT_SIZE 30
 char input[INPUT_SIZE + 1];
@@ -116,23 +119,24 @@ void write_servo(int servo_id, int val){
     val = servo_resolution-val;
   }
   int pulse = map(val, 0, servo_resolution, SERVOMIN, SERVOMAX);
+  Serial.print("servo_id");Serial.print(servo_id);Serial.print("val");Serial.println(val);
   if (execute_servo and servo_enabled[servo_id]){
-    pwm.writeMicroseconds(servo_id, pulse);
+    pwm.writeMicroseconds(servo_pins[servo_id], pulse);
   }
 }
 void set_joints(int vals[joints]){
   for (int joint_id = 0; joint_id <= joints; joint_id++) {
-
+    Serial.print("joint_id");Serial.print(joint_id);
     int val = vals[joint_id];
-    Serial.print("val");Serial.println(val);
+    
     if (val == -1){
 
       continue;
     }
  //First joint has two servos. The second one gets a reversed signal.
     if (joint_id == 0){
-       write_servo(left_servo, val); // left servo
-       write_servo(right_servo, val); // right servo
+       write_servo(0, val); // left servo
+       write_servo(1, val); // right servo
     }
     else{
        write_servo(joint_id+1, val);
@@ -209,14 +213,14 @@ void loop() {
 //
 if (tune_start){
 
-    check_ending = 1023 - check_ending; // be carefull using this switch actions
+    check_ending = 1023 - check_ending; // BE CAREFULL using this switch actions
 
     int q1 = map(pot1, 0, 1023, 0, servo_resolution);
     int q2 = map(pot2, 0, 1023, 0, servo_resolution);
 //   Serial.println(start_pos1);
     //int start_pos3 = map(check_ending, 0, 1023, SERVOMIN, SERVOMAX); // for simulating boundary signals
 
-    write_servo(3, q1);
+    write_servo(0, q1);
 //    write_servo(3, start_pos4);
 //
 //   Serial.print("pot1: ");Serial.println(pot1);
