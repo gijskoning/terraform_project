@@ -73,4 +73,4 @@ If you get `cannot import name 'Serial' from 'serial' ` do
   ```
 ## permissions
 Enable usb permission on Ubuntu using: 
-'sudo usermod -a -G dialout <username>'
+'sudo usermod -a -G dialout USERNAME'
