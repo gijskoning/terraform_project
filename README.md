@@ -71,3 +71,6 @@ If you get `cannot import name 'Serial' from 'serial' ` do
   python -m pip uninstall serial
   python -m pip install pyserial  
   ```
+## permissions
+Enable usb permission on Ubuntu using: 
+'sudo usermod -a -G dialout <username>'
