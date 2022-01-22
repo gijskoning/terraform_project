@@ -57,10 +57,11 @@ const int joints = 5;
 bool servo_enabled[6] = {true,true,true,true,true,true}; // keeo in mind first 2 servos are joint 1
 bool servo_reversed[6] = {false,true,false,true,false,false};
 int servo_pins[6] = {2,0,4,6,8,10};
+int last_servo_val[6] = {-1,-1,-1,-1,-1,-1};
 const int reset_time_sec = 3;
 int reset_q[5] = {190,0,80,90,90}; // constant value
 bool reset= false;
-int last_joint_command[5] = {-1,-1,-1,-1,-1};
+
 int vals[5];
 // For serial communication with pc
 #define INPUT_SIZE 30
@@ -113,8 +114,15 @@ void serialFlush(){
     char t = Serial.read();
   }
 }
+
 void write_servo(int servo_id, int val){
   reset = false;
+  // Do not send the same value
+  if (last_servo_val[servo_id] == val){
+    return;
+  }
+  last_servo_val[servo_id] = val;
+
   if (servo_reversed[servo_id]){
     val = servo_resolution-val;
   }
@@ -149,7 +157,6 @@ void turn_off_joints(){
   }
 }
 void read_command(int* joint_vals){
-    int servos[3] = {0,0,0};
     char * pch;
     byte size = Serial.readBytes(input, INPUT_SIZE);
     input[size] = 0;
@@ -167,10 +174,8 @@ void read_command(int* joint_vals){
           *separator = 0;
           int joint_id = atoi(command);
           // avoid sending multiple commands to same servo
-          if (servos[joint_id] == 1){
+          if (joint_vals[joint_id] != -1){
             continue;
-          }else{
-            servos[joint_id] = 1;
           }
           ++separator;
           joint_vals[joint_id] = atoi(separator);
@@ -185,7 +190,7 @@ int start = 1;
 bool tune_start = false;
 int check_ending = 0;
 unsigned long last_command_milli = millis() - reset_time_sec*1000;
-int joint_vals[joints];
+
 void loop() {
   if (!tune_start){
     if(Serial.available()){
@@ -202,6 +207,7 @@ void loop() {
         set_joints(reset_q);
         delay(2000);
         turn_off_joints();
+        last_servo_val = {-1,-1,-1,-1,-1,-1};
         reset=true;
       }
     }
