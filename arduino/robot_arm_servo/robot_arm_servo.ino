@@ -190,7 +190,7 @@ void loop() {
   if (!tune_start){
     if(Serial.available()){
 
-      int joint_vals[joints] = {-1,-1,-1};
+      int joint_vals[joints] = {-1,-1,-1,-1,-1};
       read_command(joint_vals);
       Serial.print("joint_vals: ");Serial.println(joint_vals[0]);
       set_joints(joint_vals);
