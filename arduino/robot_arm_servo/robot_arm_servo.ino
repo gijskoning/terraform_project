@@ -136,7 +136,11 @@ void set_joints(int vals[joints]){
   for (int joint_id = 0; joint_id <= joints; joint_id++) {
     Serial.print("joint_id");Serial.print(joint_id);
     int val = vals[joint_id];
+    // TODO slowly move the servoes to desired endpoint. 
+    // https://github.com/siteswapjuggler/RAMP
+    // Use rampint
     
+    // By setting the servo values in a range between the current position and the goal.
     if (val == -1){
 
       continue;
