@@ -12,11 +12,13 @@ from gym_robotic_arm.constants import MIN_CONFIG_SERVO
 
 class ArduinoControl:
 
-    def __init__(self, port='COM6', do_not_send=False):
+    def __init__(self, gripper=[100,100], port='COM4', do_not_send=False):
         print("trying port", port)
 
         self.arduino = Serial(port=port, baudrate=115200, timeout=.1)
         self.do_not_send = do_not_send
+
+        self.gripper = gripper
 
     def transform_q(self, q):
         # For specific configuration
@@ -34,15 +36,18 @@ class ArduinoControl:
         :return:
         """
         resolution = 200
+        print("q_global", q_global)
         q = self.transform_q(q_global)
+        print("q", q)
         q = q / math.pi * resolution
         q = np.clip(q, 0, resolution)
 
         q = self.cap_angles(q)
 
         q = q.astype(int)
+        s4, s5 = self.gripper
         s1, s2, s3 = q
-        self.write_message(f"0:{s1},1:{s2},2:{s3}", debug)
+        self.write_message(f"0:{s1},1:{s2},2:{s3},3:{s4},4:{s5}", debug)
         # self.write_message(f"0:{s1},1:{s2}", debug)
 
     def write_message(self, x, debug=False):
@@ -72,14 +77,14 @@ class ArduinoControl:
         """
         # :param action: [q1,q2,q3,q4] floats q4 is gripper
         """
-        # [360-660]
+          # [360-660]
         self.set_servo(action[:3], debug)
 
 
 if __name__ == '__main__':
     # test code
     arduino_control = ArduinoControl()
-    arduino_control.sent_action("test")
+    arduino_control.sent_action("test", "none")
 # Sending:  0:80,1:29,2:0
 # Length bytes:  13
 # data: b'command0:80\r\n'
