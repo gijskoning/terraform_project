@@ -13,6 +13,7 @@ from sim_utils import length, config_to_polygon_pygame, check_collision, config_
 from visualization_util import draw_rectangle_from_config, DISPLAY
 from visualize_robot_arm import Display
 from gym_robotic_arm.arduino_communication import ArduinoControl
+from gym_robotic_arm.envs.waveshare_camera import WaveShareCamera
 
 dt = CONTROL_DT
 # ROBOT     PARAMETERS
@@ -80,6 +81,9 @@ if __name__ == '__main__':
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
     step = 0
     sent = 2
+    camera = WaveShareCamera(1)
+    camera.show_feed_continuous()
+
     while True:
         display.render(q, goal)
 
