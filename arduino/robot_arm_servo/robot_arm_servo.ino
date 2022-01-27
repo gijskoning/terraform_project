@@ -211,7 +211,9 @@ void loop() {
         set_joints(reset_q);
         delay(2000);
         turn_off_joints();
-        last_servo_val = {-1,-1,-1,-1,-1,-1};
+        for(int i=0;i<6;++i){
+          last_servo_val[i] = -1;
+        }
         reset=true;
       }
     }
