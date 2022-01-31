@@ -132,46 +132,13 @@ class RobotArm3dof:
 
         dq = self.constraint(dq)
         self.q += dq * self.dt
-        # self.dq = dq
         self.end_p = self.FK_end_p()
-        if iteration % 100 == 0:
-            # this is temporary and not using the arduino code!
-            def transform_q(q):
-                # For specific configuration
-                return -q + MIN_CONFIG_SERVO
-
-            def cap_angles(q):
-                # For specific configuration
-                q = q.copy()
-                # q[0] = np.clip(q[0], 0, 200)
-                return q
-            resolution = 200
-            q = transform_q(self.q)
-            q = q / math.pi * resolution
-            q = np.clip(q, 0, resolution)
-            print("q temp", q)
-
-            q = cap_angles(q)
-
-            q = q.astype(int)
-            # q_temp = -self.q + MIN_CONFIG_SERVO
-            print("q that will be sent", q)
 
         if self.arduino_control is not None:
 
             # Move angles
-            # Todo this code should move to arduino class
-            if iteration % 100 == 0:
-
-                # print("q-INITIAL_CONFIG_Q", self.q - INITIAL_CONFIG_SERVO)
-                # print("INITIAL_CONFIG_Q", INITIAL_CONFIG_SERVO)
-                # q_temp = ((self.q - INITIAL_CONFIG_SERVO) * 100).astype(int)
-                # q_temp = (q * 100).astype(int)
-                # sent_action(f"0:{q_temp[0]}")
-                # sent_action(f"0:{q_temp[0]},1:{-q_temp[1]},2:{q_temp[2]}")
-                # sent_action(f"0:{q[0]},1:{q[1]},2:{q[2]},3:{sent}")
-                self.arduino_control.gripper = gripper
-                self.arduino_control.sent_action(self.q, debug=True)
+            self.arduino_control.gripper = gripper
+            self.arduino_control.sent_action(self.q, debug=True)
 
         return self.end_p, self.q, dq
 
