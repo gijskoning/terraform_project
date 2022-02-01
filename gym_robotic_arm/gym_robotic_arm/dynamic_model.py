@@ -4,7 +4,9 @@ import math
 from numpy import sin, cos
 
 from gym_robotic_arm.sim_utils import arm_to_polygon, check_collision
-from gym_robotic_arm.constants import ARMS_LENGTHS, ARM_WIDTH, INITIAL_CONFIG_SERVO, CONTROL_DT
+from gym_robotic_arm.constants import ARMS_LENGTHS, ARM_WIDTH, CONTROL_DT
+
+from gym_robotic_arm.constants import MIN_CONFIG_SERVO
 
 
 class RobotArm3dof:
@@ -122,7 +124,7 @@ class RobotArm3dof:
 
         return dq
 
-    def move_endpoint_xz(self, F, iteration=0):
+    def move_endpoint_xz(self, F, gripper, iteration=0,):
         """"
         F: float[2] the endpoint movement (x,z)
         """
@@ -130,20 +132,13 @@ class RobotArm3dof:
 
         dq = self.constraint(dq)
         self.q += dq * self.dt
-        # self.dq = dq
         self.end_p = self.FK_end_p()
+
         if self.arduino_control is not None:
+
             # Move angles
-            # Todo this code should move to arduino class
-            if iteration % 100 == 0:
-                print("q-INITIAL_CONFIG_Q", self.q - INITIAL_CONFIG_SERVO)
-                print("INITIAL_CONFIG_Q", INITIAL_CONFIG_SERVO)
-                q_temp = ((self.q - INITIAL_CONFIG_SERVO) * 100).astype(int)
-                # q_temp = (q * 100).astype(int)
-                # sent_action(f"0:{q_temp[0]}")
-                # sent_action(f"0:{q_temp[0]},1:{-q_temp[1]},2:{q_temp[2]}")
-                # sent_action(f"0:{q[0]},1:{q[1]},2:{q[2]},3:{sent}")
-                self.arduino_control.sent_action(self.q, debug=True)
+            self.arduino_control.gripper = gripper
+            self.arduino_control.sent_action(self.q, debug=True)
 
         return self.end_p, self.q, dq
 
@@ -153,13 +148,13 @@ class RobotArm3dof:
         else:
             self.q = joint_angles.copy()
 
-        self.end_p = np.zeros(2)
+        self.end_p = self.FK_end_p()
 
         if self.arduino_control is not None:
             self.arduino_control.sent_action(self.q)
 
     def constraint(self, dq):
-        global_pos_constraint_lb = [0.01, -0.1] # lower bound global constraint
+        global_pos_constraint_lb = [-10, -0.1] # lower bound global constraint
         p = np.zeros(2)
         self.arm_regions = []
 
@@ -173,7 +168,11 @@ class RobotArm3dof:
                     p = np.zeros(2)
                 obstacles.append(arm_to_polygon(*p, np.sum(q[:i + 1]), l, ARM_WIDTH))
             return obstacles
-
+        new_q = self.q + dq * self.dt
+        # Check for base arm to not hit the base
+        if new_q[0] < 0.5*np.pi:
+            dq[0] = 0
+        # Other checks on all arms
         for i in range(len(dq)):
             new_q = self.q + dq * self.dt
             joint_positions_new = self.FK_all_points(new_q)
@@ -187,6 +186,7 @@ class RobotArm3dof:
             if not check_collision(create_obstacles(joint_positions_new, new_q)):
                 dq[i] = 0
 
+            # for visualization
             l = ARMS_LENGTHS[i]
             pol = arm_to_polygon(*p, np.sum(self.q[:i + 1]), l, ARM_WIDTH)
             self.arm_regions.append(pol)

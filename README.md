@@ -53,17 +53,16 @@ cd libfreenect-goodies/
 ```
 ## Install robotic arm environment
 Also needs to be used after updating the code
-`pip install -e ./gym-robotic_arm/`
+`pip install -e ./gym_robotic_arm/`
 
 ## arduino
 Install pwm servo driver: https://forum.arduino.cc/t/adafruit-pwm-servo-driver-exists-but-does-not-see/509542
 You need to add the Adafruit PWM Servo driver library. Go into the Library Manager and search for it.
 Sketch --> Include Library -->Manage Libraries
-## Setup Com port on wsl2
- https://devblogs.microsoft.com/commandline/connecting-usb-devices-to-wsl/
-To attach busid. Restart wsl. Sent random file to the com port using arduino ide. Than run the command.
-Check device is visible in ubuntu: `lsusb`
-Enable permissions in ubuntu to access: `sudo chmod 666 /dev/tty3`
+## Setup serial on ubuntu
+Find usb by checking `ls /dev/` Remove usb to see the difference.
+Can also check arduino ide which ones are available.  
+Enable permissions in ubuntu to access: `sudo chmod 666 /dev/ttyUSB0`
 ## Install cuda on ubuntu
 https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=20.04&target_type=runfile_local
 # Errors
@@ -72,3 +71,6 @@ If you get `cannot import name 'Serial' from 'serial' ` do
   python -m pip uninstall serial
   python -m pip install pyserial  
   ```
+## permissions
+Enable usb permission on Ubuntu using: 
+'sudo usermod -a -G dialout USERNAME'
