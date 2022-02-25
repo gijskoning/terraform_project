@@ -16,7 +16,7 @@
 
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
-#include <Ramp.h>  // requires  siteswapjuggler /RAMP
+#include <Ramp.h>  // requires  RAMP by Sylvain
 
 
 
@@ -57,19 +57,20 @@ const int servo_resolution = 200;
 
 bool execute_servo = true; // when false doesnt execute servos
 const int joints = 5;
-bool servo_enabled[6] = {false,false,true,false,false,false}; // keeo in mind first 2 servos are joint 1
-bool servo_reversed[6] = {false,true,false,true,false,false};
-int servo_pins[6] = {2,0,4,6,8,10};
-int last_servo_val[6] = {-1,-1,-1,-1,-1,-1};
-int last_joint_val[5] = {-1,-1,-1,-1,-1};
+const int servos = 6;
+bool servo_enabled[servos] = {true,true,true,true,false,false}; // keep in mind first 2 servos are joint 1
+bool servo_reversed[servos] = {false,true,false,true,false,false};
+int servo_pins[servos] = {2,0,4,6,8,10};
+int last_servo_val[servos] = {-1,-1,-1,-1,-1,-1};
+int last_joint_val[joints] = {-1,-1,-1,-1,-1};
 const int reset_time_sec = 3;
-int reset_q[5] = {145,150,80,90,90}; // constant value
+int reset_q[joints] = {140,110,80,90,90}; // constant value
 bool active = false;
 bool resetting= false;
 
 
-rampInt* joints_ramp_objs;
-int vals[5];
+rampInt joints_ramp_objs[joints];
+int vals[joints];
 // For serial communication with pc
 #define INPUT_SIZE 30
 char input[INPUT_SIZE + 1];
@@ -97,14 +98,12 @@ void setup() {
   pwm.setOscillatorFrequency(27000000);
   pwm.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
   pinMode(LED_BUILTIN, OUTPUT);
-  
+  delay(10);
   turn_off_joints();
   for (int i = 0; i < joints; i++) {
-    rampInt new_ramp;
-    new_ramp.go(reset_q[i],0);// set ramp to reset point
-    joints_ramp_objs[i] = new_ramp;  
+    joints_ramp_objs[i] = rampInt();
+    joints_ramp_objs[i].go(reset_q[i],0);// set ramp to reset point
   }
-  delay(50);
 }
 
 // You can use this function if you'd like to set the pulse length in seconds
@@ -130,6 +129,9 @@ void serialFlush(){
 }
 
 void write_servo(int servo_id, int val){
+  if(servo_id == 0){
+    Serial.print("servo_id");Serial.print(servo_id);Serial.print("val");Serial.println(val);
+  }
   // Do not send the same value
   if (last_servo_val[servo_id] == val){
     return;
@@ -147,13 +149,8 @@ void write_servo(int servo_id, int val){
 }
 void set_joints(int vals[joints]){
   for (int joint_id = 0; joint_id < joints; joint_id++) {
-    Serial.print("joint_id");Serial.print(joint_id);
+    
     int val = vals[joint_id];
-    
-    
-    // TODO slowly move the servoes to desired endpoint. 
-    // https://github.com/siteswapjuggler/RAMP
-    // Use rampint
     
     // By setting the servo values in a range between the current position and the goal.
     if (val == -1){
@@ -161,29 +158,24 @@ void set_joints(int vals[joints]){
       continue;
     }
     if (val != last_joint_val[joint_id]){
-        rampInt joint_ramp = joints_ramp_objs[joint_id];
-        int length_move = abs(joint_ramp.getValue() - val)*1000*8/servo_resolution;
-        joint_ramp.go(val, length_move);       
+        Serial.print("joint_id");Serial.print(joint_id);
+        Serial.print("val_joint");Serial.print(val);
+        // todo put speed in variable
+        int length_move = abs(joints_ramp_objs[joint_id].getValue() - val)*1000*8/servo_resolution;
+        joints_ramp_objs[joint_id].go(val, length_move);       
         active = true;
     }
-    
-// //First joint has two servos. The second one gets a reversed signal.
-//    if (joint_id == 0){
-//       write_servo(0, val); // left servo
-//       write_servo(1, val); // right servo
-//    }
-//    else{
-//       write_servo(joint_id+1, val);
-//    }
     last_joint_val[joint_id] = val;
   }
 }
 void move_servos(){
   for (int joint_id = 0; joint_id < joints; joint_id++) {
-    rampInt joint_ramp = joints_ramp_objs[joint_id];
-    int val = joint_ramp.update();
-    Serial.print("Value start at: ");
-    Serial.println(joint_ramp.getValue());
+//    rampInt joint_ramp = joints_ramp_objs[joint_id];
+    int val = joints_ramp_objs[joint_id].update();
+    
+//    Serial.print("Move joint: ");Serial.println(joint_id);
+//    Serial.print("Value start at: ");
+//    Serial.println(joint_ramp.getValue());
     //First joint has two servos. The second one gets a reversed signal.
     if (joint_id == 0){
        write_servo(0, val); // left servo
@@ -235,6 +227,7 @@ unsigned long last_command_milli = millis() - reset_time_sec*1000;
 
 
 void loop() {
+  Serial.println("console prints!");
   delay(25); // base delay per loop
   if (!tune_start){
     if(Serial.available()){
@@ -255,7 +248,7 @@ void loop() {
       move_servos();
     }
     if(resetting){
-      if (millis() - last_command_milli > reset_time_sec*1000*5){
+      if (millis() - last_command_milli > reset_time_sec*1000*3){
           turn_off_joints();
           for(int i=0;i<6;++i){
             last_servo_val[i] = -1;
@@ -288,5 +281,5 @@ if (tune_start){
    Serial.print("q2: ");Serial.println(q2);
    delay(500);
  }
-//
+
 }

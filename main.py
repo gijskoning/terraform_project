@@ -69,7 +69,7 @@ def gripperControl(goal):
 if __name__ == '__main__':
     arduino = True
     arduino_control = None
-    arduino_port = '/dev/ttyUSB1'  # Ubuntu desktop bottom right: /dev/ttyUSB1
+    arduino_port = 'COM6'  # Ubuntu desktop bottom right: /dev/ttyUSB1. Windows: COM4
     do_not_send = False
     if arduino:
         try:

@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 
 import numpy as np
 import time
@@ -54,14 +55,15 @@ class ArduinoControl:
         if debug:
             print("Sending: ", x)
         _bytes = bytes(str(x), 'utf-8')
-        print("Length bytes: ", len(_bytes))
+        # print("Length bytes: ", len(_bytes))
         if not self.do_not_send:
             self.arduino.write(_bytes)
-            time.sleep(0.05)
+            time.sleep(0.02)
             data = self.arduino.readlines()
             if debug and data is not None:
+                ts = datetime.utcnow().strftime('%H:%M:%S')
                 for line in data:
-                    print("data:", line)
+                    print(f"{ts} data:", line)
             return data
         return None
 

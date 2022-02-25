@@ -170,7 +170,7 @@ class RobotArm3dof:
             return obstacles
         new_q = self.q + dq * self.dt
         # Check for base arm to not hit the base
-        if new_q[0] < 0.5*np.pi:
+        if new_q[0] < 0.1*np.pi:
             dq[0] = 0
         # Other checks on all arms
         for i in range(len(dq)):
