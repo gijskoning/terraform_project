@@ -23,12 +23,17 @@ Update pip:
 `sudo apt-get install build-essential libgtk-3-dev`
 Install requirements
 `pip install -r requirements.txt`
+For install arduino: `sudo apt-get install arduino`
 ## Installing pytorch and mujoco
 `python -m pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 -f https://download.pytorch.org/whl/torch_stable.html`  
-https://github.com/openai/mujoco-py  
-`wget https://mujoco.org/download/mujoco210-linux-x86_64.tar.gz`
+`sudo apt install libosmesa6-dev libgl1-mesa-glx libglfw3 libglew-dev patchelf`
+`sudo apt install libopengl0 -y`
+See Mujoco install information: https://github.com/openai/mujoco-py  
+Download mujoco: `wget https://mujoco.org/download/mujoco210-linux-x86_64.tar.gz`  
+ and unzip with (double check this ends up as ~/.mujoco/mujoco210/{bin,...}) `tar -xf mujoco210-linux-x86_64.tar.gz ~/.mujoco/mujoco210`  
 
-`pip install mujoco-py<2.2,>=2.1`  
+
+`pip install "mujoco-py<2.2,>=2.1"`  
 ## Installing kinect
 Need libusb: sudo apt-get install libusb-1.0-0-dev
 Install libfreenect:

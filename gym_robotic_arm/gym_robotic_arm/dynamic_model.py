@@ -124,7 +124,7 @@ class RobotArm3dof:
 
         return dq
 
-    def move_endpoint_xz(self, F, gripper, iteration=0,):
+    def move_endpoint_xz(self, F, gripper=0, iteration=0,):
         """"
         F: float[2] the endpoint movement (x,z)
         """

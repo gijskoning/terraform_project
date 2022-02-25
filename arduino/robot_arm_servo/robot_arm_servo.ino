@@ -16,6 +16,9 @@
 
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
+#include <Ramp.h>  // requires  siteswapjuggler /RAMP
+
+
 
 // called this way, it uses the default address 0x40
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
@@ -54,14 +57,18 @@ const int servo_resolution = 200;
 
 bool execute_servo = true; // when false doesnt execute servos
 const int joints = 5;
-bool servo_enabled[6] = {true,true,true,true,true,true}; // keeo in mind first 2 servos are joint 1
+bool servo_enabled[6] = {false,false,true,false,false,false}; // keeo in mind first 2 servos are joint 1
 bool servo_reversed[6] = {false,true,false,true,false,false};
 int servo_pins[6] = {2,0,4,6,8,10};
 int last_servo_val[6] = {-1,-1,-1,-1,-1,-1};
+int last_joint_val[5] = {-1,-1,-1,-1,-1};
 const int reset_time_sec = 3;
-int reset_q[5] = {190,0,80,90,90}; // constant value
-bool reset= false;
+int reset_q[5] = {145,150,80,90,90}; // constant value
+bool active = false;
+bool resetting= false;
 
+
+rampInt* joints_ramp_objs;
 int vals[5];
 // For serial communication with pc
 #define INPUT_SIZE 30
@@ -90,7 +97,14 @@ void setup() {
   pwm.setOscillatorFrequency(27000000);
   pwm.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
   pinMode(LED_BUILTIN, OUTPUT);
-  delay(10);
+  
+  turn_off_joints();
+  for (int i = 0; i < joints; i++) {
+    rampInt new_ramp;
+    new_ramp.go(reset_q[i],0);// set ramp to reset point
+    joints_ramp_objs[i] = new_ramp;  
+  }
+  delay(50);
 }
 
 // You can use this function if you'd like to set the pulse length in seconds
@@ -116,7 +130,6 @@ void serialFlush(){
 }
 
 void write_servo(int servo_id, int val){
-  reset = false;
   // Do not send the same value
   if (last_servo_val[servo_id] == val){
     return;
@@ -133,9 +146,11 @@ void write_servo(int servo_id, int val){
   }
 }
 void set_joints(int vals[joints]){
-  for (int joint_id = 0; joint_id <= joints; joint_id++) {
+  for (int joint_id = 0; joint_id < joints; joint_id++) {
     Serial.print("joint_id");Serial.print(joint_id);
     int val = vals[joint_id];
+    
+    
     // TODO slowly move the servoes to desired endpoint. 
     // https://github.com/siteswapjuggler/RAMP
     // Use rampint
@@ -145,7 +160,31 @@ void set_joints(int vals[joints]){
 
       continue;
     }
- //First joint has two servos. The second one gets a reversed signal.
+    if (val != last_joint_val[joint_id]){
+        rampInt joint_ramp = joints_ramp_objs[joint_id];
+        int length_move = abs(joint_ramp.getValue() - val)*1000*8/servo_resolution;
+        joint_ramp.go(val, length_move);       
+        active = true;
+    }
+    
+// //First joint has two servos. The second one gets a reversed signal.
+//    if (joint_id == 0){
+//       write_servo(0, val); // left servo
+//       write_servo(1, val); // right servo
+//    }
+//    else{
+//       write_servo(joint_id+1, val);
+//    }
+    last_joint_val[joint_id] = val;
+  }
+}
+void move_servos(){
+  for (int joint_id = 0; joint_id < joints; joint_id++) {
+    rampInt joint_ramp = joints_ramp_objs[joint_id];
+    int val = joint_ramp.update();
+    Serial.print("Value start at: ");
+    Serial.println(joint_ramp.getValue());
+    //First joint has two servos. The second one gets a reversed signal.
     if (joint_id == 0){
        write_servo(0, val); // left servo
        write_servo(1, val); // right servo
@@ -156,7 +195,7 @@ void set_joints(int vals[joints]){
   }
 }
 void turn_off_joints(){
-  for (int servo_id = 0; servo_id <= joints+1; servo_id++) {
+  for (int servo_id = 0; servo_id < joints+1; servo_id++) {
     pwm.writeMicroseconds(servo_id, 0);
   }
 }
@@ -190,15 +229,15 @@ void read_command(int* joint_vals){
     serialFlush();
 }
 
-int start = 1;
 bool tune_start = false;
 int check_ending = 0;
 unsigned long last_command_milli = millis() - reset_time_sec*1000;
 
+
 void loop() {
+  delay(25); // base delay per loop
   if (!tune_start){
     if(Serial.available()){
-
       int joint_vals[joints] = {-1,-1,-1,-1,-1};
       read_command(joint_vals);
       Serial.print("joint_vals: ");Serial.println(joint_vals[0]);
@@ -206,16 +245,23 @@ void loop() {
       last_command_milli = millis();
     }
     else{
-      if (!reset and millis() - last_command_milli > reset_time_sec*1000){
+      if (!resetting and millis() - last_command_milli > reset_time_sec*1000){
         Serial.println("reset: ");
-        set_joints(reset_q);
-        delay(2000);
-        turn_off_joints();
-        for(int i=0;i<6;++i){
-          last_servo_val[i] = -1;
-        }
-        reset=true;
+        set_joints(reset_q);        
+        resetting=true;        
       }
+    }
+    if (active){
+      move_servos();
+    }
+    if(resetting){
+      if (millis() - last_command_milli > reset_time_sec*1000*5){
+          turn_off_joints();
+          for(int i=0;i<6;++i){
+            last_servo_val[i] = -1;
+          }
+          active=false;
+       }
     }
   }
   int pot1 = analogRead(potpin1);
