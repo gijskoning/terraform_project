@@ -16,7 +16,7 @@ class ArduinoControl:
     def __init__(self, gripper=[100,100], port='COM4', do_not_send=False):
         print("trying port", port)
 
-        self.arduino = Serial(port=port, baudrate=115200, timeout=.1)
+        self.arduino = Serial(port=port, baudrate=115200, timeout=.01)
         self.do_not_send = do_not_send
 
         self.gripper = gripper
