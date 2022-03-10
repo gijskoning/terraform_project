@@ -51,6 +51,8 @@ int val3;
 int val4;
 int val5;
 
+const int action_delay = 600;
+
 
 
 const int servo_resolution = 200;
@@ -180,9 +182,11 @@ void move_servos(){
     if (joint_id == 0){
        write_servo(0, val); // left servo
        write_servo(1, val); // right servo
+       delay(action);
     }
     else{
        write_servo(joint_id+1, val);
+       delay(action_delay);
     }
   }
 }
