@@ -31,10 +31,8 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 // want these to be as small/large as possible without hitting the hard stop
 // for max range. You'll have to tweak them as necessary to match the servos you
 // have!
-#define SERVOMIN  340  // This is the 'minimum' pulse length count (out of 4096)
-#define SERVOMAX  2505 // This is the 'maximum' pulse length count (out of 4096)
-#define USMIN  600 // This is the rounded 'minimum' microsecond length based on the minimum pulse of 150
-#define USMAX  2400 // This is the rounded 'maximum' microsecond length based on the maximum pulse of 600
+#define SERVOMIN  352  //340 This is the 'minimum' pulse length count (out of 4096)
+#define SERVOMAX  2640 //2505 This is the 'maximum' pulse length count (out of 4096)
 #define SERVO_FREQ 50 // Analog servos run at ~50 Hz updates
 
 // stepper
@@ -51,8 +49,6 @@ int val3;
 int val4;
 int val5;
 
-const int action_delay = 600;
-
 
 
 const int servo_resolution = 200;
@@ -62,7 +58,7 @@ const int joints = 5;
 const int servos = 6;
 bool servo_enabled[servos] = {true,true,true,true,false,false}; // keep in mind first 2 servos are joint 1
 bool servo_reversed[servos] = {false,true,false,true,false,false};
-int servo_pins[servos] = {2,0,4,6,8,10};
+int servo_pins[servos] = {0,2,4,6,8,10};
 int last_servo_val[servos] = {-1,-1,-1,-1,-1,-1};
 int last_joint_val[joints] = {-1,-1,-1,-1,-1};
 const int reset_time_sec = 3;
@@ -97,7 +93,7 @@ void setup() {
    * affects the calculations for the PWM update frequency.
    * Failure to correctly set the int.osc value will cause unexpected PWM results
    */
-  pwm.setOscillatorFrequency(27000000);
+  pwm.setOscillatorFrequency(25002000);
   pwm.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
   pinMode(LED_BUILTIN, OUTPUT);
   delay(10);
@@ -114,7 +110,7 @@ void setServoPulse(uint8_t n, double pulse) {
   double pulselength;
 
   pulselength = 1000000;   // 1,000,000 us per second
-  pulselength /= SERVO_FREQ;   // Analog servos run at ~60 Hz updates
+  pulselength = SERVO_FREQ;   // Analog servos run at ~60 Hz updates
   Serial.print(pulselength); Serial.println(" us per period");
   pulselength /= 4096;  // 12 bits of resolution
   Serial.print(pulselength); Serial.println(" us per bit");
@@ -161,7 +157,7 @@ void set_joints(int vals[joints]){
     }
     if (val != last_joint_val[joint_id]){
         Serial.print("joint_id");Serial.print(joint_id);
-        Serial.print("val_joint");Serial.print(val);
+        Serial.print(" val: ");Serial.println(val);
         // todo put speed in variable
         int length_move = abs(joints_ramp_objs[joint_id].getValue() - val)*1000*8/servo_resolution;
         joints_ramp_objs[joint_id].go(val, length_move);       
@@ -172,9 +168,8 @@ void set_joints(int vals[joints]){
 }
 void move_servos(){
   for (int joint_id = 0; joint_id < joints; joint_id++) {
-//    rampInt joint_ramp = joints_ramp_objs[joint_id];
     int val = joints_ramp_objs[joint_id].update();
-    
+    val = joints_ramp_objs[joint_id].getTarget();
 //    Serial.print("Move joint: ");Serial.println(joint_id);
 //    Serial.print("Value start at: ");
 //    Serial.println(joint_ramp.getValue());
@@ -182,11 +177,9 @@ void move_servos(){
     if (joint_id == 0){
        write_servo(0, val); // left servo
        write_servo(1, val); // right servo
-       delay(action);
     }
     else{
        write_servo(joint_id+1, val);
-       delay(action_delay);
     }
   }
 }
@@ -273,9 +266,10 @@ if (tune_start){
     int q1 = map(pot1, 0, 1023, 0, servo_resolution);
     int q2 = map(pot2, 0, 1023, 0, servo_resolution);
 //   Serial.println(start_pos1);
-    //int start_pos3 = map(check_ending, 0, 1023, SERVOMIN, SERVOMAX); // for simulating boundary signals
-
-    write_servo(0, q1);
+    // for tuning min and max of servo signal uncomment two lines below
+//    int start_pos3 = map(check_ending, 0, 1023, SERVOMIN, SERVOMAX); // for simulating boundary signals
+//    pwm.writeMicroseconds(servo_pins[0], start_pos3);
+//    write_servo(0, q1);
 //    write_servo(3, start_pos4);
 //
 //   Serial.print("pot1: ");Serial.println(pot1);
@@ -283,7 +277,7 @@ if (tune_start){
 
    Serial.print("q1: ");Serial.println(q1);
    Serial.print("q2: ");Serial.println(q2);
-   delay(500);
+   delay(1000);
  }
 
 }

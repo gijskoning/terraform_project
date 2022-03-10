@@ -1,7 +1,7 @@
 # SIMULATION PARAMETERS
 import numpy as np
 import pygame
-from pygame import K_RIGHT, K_LEFT, K_UP, K_DOWN
+from pygame import K_RIGHT, K_LEFT, K_UP, K_DOWN, K_a, K_z, K_s, K_x, K_c, K_d
 
 from gym_robotic_arm.constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, ARM_WIDTH, \
     CONTROL_DT
@@ -28,9 +28,13 @@ Kd = 0.1  # derivative gain
 
 def keyboard_control(dt, goal):
     step_size = dt * 0.1
+    joint_step_size = step_size*300
     goal = goal.copy()
+    joints = len(ARMS_LENGTHS)
+    dq_keyboard = np.zeros(joints)
     pygame.event.get()  # refresh keys
     keys = pygame.key.get_pressed()
+
     if keys[K_LEFT]:
         goal[0] -= step_size
     if keys[K_RIGHT]:
@@ -40,7 +44,15 @@ def keyboard_control(dt, goal):
         goal[1] += step_size
     if keys[K_DOWN]:
         goal[1] -= step_size
-    return goal
+
+    for i, key_set in enumerate([[K_a, K_z],[K_s, K_x],[K_d, K_c]]):
+        up,down = key_set
+        if keys[up]:
+            dq_keyboard[i] += joint_step_size
+        if keys[down]:
+            dq_keyboard[i] -= joint_step_size
+    dq_keyboard = dq_keyboard if any(dq_keyboard) != 0 else None
+    return goal, dq_keyboard
 
 
 def cap_goal(goal):
@@ -51,6 +63,7 @@ def cap_goal(goal):
         shorter_local_goal = local_goal / l * TOTAL_ARM_LENGTH
         return shorter_local_goal + robot_base
     return goal
+
 
 def gripperControl(goal):
     pygame.event.get()  # refresh keys
@@ -90,7 +103,7 @@ if __name__ == '__main__':
     p = robot_base + local_endp_start
     goal = robot_base + local_endp_start
 
-    gripper = [100,100]
+    gripper = [100, 100]
 
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
     step = 0
@@ -103,7 +116,7 @@ if __name__ == '__main__':
 
         gripper = gripperControl(gripper)
 
-        goal = keyboard_control(dt, goal)
+        goal, dq_keyboard = keyboard_control(dt, goal)
         goal = cap_goal(goal)
 
         # Control
@@ -111,7 +124,13 @@ if __name__ == '__main__':
 
         # F_end can be replaced with RL action. array[2]
         F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
-        p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper, step)
+        if dq_keyboard is None:
+            p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)
+
+        else:
+            p, q, dq = robot_arm.move_joints(dq_keyboard)
+            # Set goal exactly to current endpoint
+            goal = p + robot_base
         t += dt
 
         # Render

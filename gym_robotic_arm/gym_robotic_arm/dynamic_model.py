@@ -124,18 +124,24 @@ class RobotArm3dof:
 
         return dq
 
-    def move_endpoint_xz(self, F, gripper=0, iteration=0,):
+    def move_endpoint_xz(self, F, gripper=[0,0]):
         """"
         F: float[2] the endpoint movement (x,z)
         """
         dq = self.get_dq(F)
 
+        return self.move_joints(dq, gripper)
+
+    def move_joints(self, dq, gripper=[0,0]):
+        """"
+        F: float[2] the endpoint movement (x,z)
+        """
         dq = self.constraint(dq)
         self.q += dq * self.dt
         self.end_p = self.FK_end_p()
 
         if self.arduino_control is not None:
-
+            pass
             # Move angles
             self.arduino_control.gripper = gripper
             self.arduino_control.sent_action(self.q, debug=True)

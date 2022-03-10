@@ -16,7 +16,7 @@ class ArduinoControl:
     def __init__(self, gripper=[100,100], port='COM4', do_not_send=False):
         print("trying port", port)
 
-        self.arduino = Serial(port=port, baudrate=115200, timeout=.01)
+        self.arduino = Serial(port=port, baudrate=115200, timeout=.02)
         self.do_not_send = do_not_send
 
         self.gripper = gripper
@@ -58,7 +58,7 @@ class ArduinoControl:
         # print("Length bytes: ", len(_bytes))
         if not self.do_not_send:
             self.arduino.write(_bytes)
-            time.sleep(0.02)
+            time.sleep(0.05)
             data = self.arduino.readlines()
             if debug and data is not None:
                 ts = datetime.utcnow().strftime('%H:%M:%S')
