@@ -1,7 +1,7 @@
 # SIMULATION PARAMETERS
 import numpy as np
 import pygame
-from pygame import K_RIGHT, K_LEFT, K_UP, K_DOWN, K_a, K_z, K_s, K_x, K_c, K_d
+from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_z, K_s, K_x, K_c, K_d
 
 from gym_robotic_arm.constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, ARM_WIDTH, \
     CONTROL_DT
@@ -104,6 +104,7 @@ if __name__ == '__main__':
     sent = 2
     left_click = False
     mouse_released = False
+    enable_robot = True
     while True:
         display.render(q, goal, waypoints)
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
@@ -117,8 +118,13 @@ if __name__ == '__main__':
         if mouse_released:
             goal = np.array([mouse_x, mouse_y])
             waypoints.append(goal)
-        # goal, dq_keyboard = keyboard_control(dt, goal)
-        dq_keyboard = None
+        new_keyboard_goal, dq_keyboard = keyboard_control(dt, goal)
+
+        keys = pygame.key.get_pressed()
+        if keys[K_SPACE]:
+            enable_robot = not enable_robot
+            print("enable_robot", enable_robot)
+        # dq_keyboard = None
         # print('mouse_x, mouse_y', mouse_x, mouse_y, 'goal', goal, 'new mouse', display_to_coordinate(mouse_x, mouse_y))
         # goal = cap_goal(goal)
 
@@ -126,25 +132,29 @@ if __name__ == '__main__':
         local_goal = goal - robot_base
 
         # F_end can be replaced with RL action. array[2]
-        F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
-        if dq_keyboard is None:
-            p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)
+        if enable_robot:
+            F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
 
-        else:
-            p, q, dq = robot_arm.move_joints(dq_keyboard)
-            # Set goal exactly to current endpoint
-            goal = p + robot_base
+            if dq_keyboard is None:
+                p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)
+
+            else:
+                p, q, dq = robot_arm.move_joints(dq_keyboard)
+                # Set goal exactly to current endpoint
+                goal = p + robot_base
+            # save state
+            if len(q) == 3:
+                state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], p[0], p[1]])
+            else:
+                state.append([t, q[0], q[1], dq[0], dq[1], p[0], p[1]])
         t += dt
 
         # Render
-        for pol in robot_arm.arm_regions:
-            pol = [xy + robot_base for xy in pol]
-            draw_rectangle_from_config(pol)
-        # save state
-        if len(q) == 3:
-            state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], p[0], p[1]])
-        else:
-            state.append([t, q[0], q[1], dq[0], dq[1], p[0], p[1]])
+        # for pol in robot_arm.arm_regions:
+        #     pol = [xy + robot_base for xy in pol]
+        #     print('pol', pol)
+        #     draw_rectangle_from_config(pol)
+
 
         # try to keep it real time with the desired step time
         display.tick()
