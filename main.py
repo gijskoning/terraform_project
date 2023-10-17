@@ -46,7 +46,7 @@ def keyboard_control(dt, goal):
     if keys[K_DOWN]:
         goal[1] -= step_size
 
-    for i, key_set in enumerate([[K_a, K_z], [K_s, K_x]]):  # ,[K_d, K_c]]):
+    for i, key_set in enumerate([[K_a, K_z], [K_s, K_x] ,[K_d, K_c]]):
         up, down = key_set
         if keys[up]:
             dq_keyboard[i] += joint_step_size
