@@ -84,8 +84,11 @@ class Display:
     def render(self, q, goal):
         # real-time plotting
         DISPLAY.fill((255, 255, 255))  # clear window
+        if len(self.arm_lengths) == 3:
+            l1, l2, l3 = self.arm_lengths
+        else:
+            (l1, l2), l3 = self.arm_lengths, None
 
-        l1, l2, l3 = self.arm_lengths
         # update individual link position
         x0, y0 = self.start
         xbase, ybase = [0,0]
@@ -96,16 +99,19 @@ class Display:
         # print("xy",x1,y1)
         x2 = x1 + l2 * np.cos(q[0] + q[1])
         y2 = y1 + l2 * np.sin(q[0] + q[1])
-        x3 = x2 + l3 * np.cos(q[0] + q[1] + q[2])
-        y3 = y2 + l3 * np.sin(q[0] + q[1] + q[2])
+        if l3 is not None:
+            x3 = x2 + l3 * np.cos(q[0] + q[1] + q[2])
+            y3 = y2 + l3 * np.sin(q[0] + q[1] + q[2])
         # x4 = x3 + l4 * np.cos(q[0] + q[1] + q[2] + q[3])
         # y4 = y3 + l4 * np.sin(q[0] + q[1] + q[2] + q[3])
         window_scale = self.window_scale
         xc, yc = self.xc, self.yc
 
         # xy_list = list(zip([xbase, x0, x1], [ybase, y0, y1]))
-        xy_list = list(zip([xbase, x0, x1, x2, x3], [ybase, y0, y1, y2, y3]))
-
+        if l3 is not None:
+            xy_list = list(zip([xbase, x0, x1, x2, x3], [ybase, y0, y1, y2, y3]))
+        else:
+            xy_list = list(zip([xbase, x0, x1, x2], [ybase, y0, y1, y2]))
         xy_list_lines = xy_list.copy()
         points = np.array(xy_list_lines)
         #

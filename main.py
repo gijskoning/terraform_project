@@ -7,13 +7,13 @@ from gym_robotic_arm.constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_B
     CONTROL_DT
 
 from gym_robotic_arm.dynamic_model import RobotArm3dof, PIDController
-from serial import SerialException
+# from serial import SerialException
 
 from sim_utils import length, config_to_polygon_pygame, check_collision, config_to_polygon, arm_to_polygon
 from visualization_util import draw_rectangle_from_config, DISPLAY
 from visualize_robot_arm import Display
-from gym_robotic_arm.arduino_communication import ArduinoControl
-from gym_robotic_arm.envs.waveshare_camera import WaveShareCamera
+# from gym_robotic_arm.arduino_communication import ArduinoControl
+# from gym_robotic_arm.envs.waveshare_camera import WaveShareCamera
 
 dt = CONTROL_DT
 # ROBOT     PARAMETERS
@@ -80,19 +80,10 @@ def gripperControl(goal):
 
 
 if __name__ == '__main__':
-    arduino = True
-    arduino_control = None
-    arduino_port = 'COM6'  # Ubuntu desktop bottom right: /dev/ttyUSB1. Windows: COM4
     do_not_send = False
-    if arduino:
-        try:
-            arduino_control = ArduinoControl(port=arduino_port, do_not_send=do_not_send)
-        except IOError as e:
-            print(e)
-    print("arduino_control", arduino_control)
     robot_base = np.array([0, ZERO_POS_BASE])
 
-    robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q, arduino_control=arduino_control)
+    robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q)
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
     controller = PIDController(kp=15, ki=0.1, kd=0.1)
@@ -108,8 +99,6 @@ if __name__ == '__main__':
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
     step = 0
     sent = 2
-    camera = WaveShareCamera(1)
-    camera.show_feed_continuous()
 
     while True:
         display.render(q, goal)
@@ -138,7 +127,10 @@ if __name__ == '__main__':
             pol = [xy + robot_base for xy in pol]
             draw_rectangle_from_config(pol)
         # save state
-        state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], p[0], p[1]])
+        if len(q) == 3:
+            state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], p[0], p[1]])
+        else:
+            state.append([t, q[0], q[1], dq[0], dq[1], p[0], p[1]])
 
         # try to keep it real time with the desired step time
         display.tick()
