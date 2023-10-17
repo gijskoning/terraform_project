@@ -138,26 +138,30 @@ class Display:
         draw_points(xy_list[-1:], color=(255, 0, 0))
 
         for i in range(len(waypoints)):
-            w = waypoints[i]
+            w_pos = waypoints[i][:2]
+            w_angle = waypoints[i][2]
             if i < len(waypoints) - 1:
-                w2 = waypoints[i + 1]
                 if i == 0:
-                    pygame.draw.circle(DISPLAY, (255, 0, 0), coordinate_to_display(*w), 8) # DRAW START POINT
+                    pygame.draw.circle(DISPLAY, (255, 0, 0), coordinate_to_display(*w_pos), 8) # DRAW START POINT
                 else:
-                    pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w), 8) # DRAW OTHER WAYPOINTS
+                    pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w_pos), 8) # DRAW OTHER WAYPOINTS
+                # draw arrow for direction with w_angle
             else:
-                pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w), 4) # DRAW FINAL POINT
+                pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w_pos), 4) # DRAW FINAL POINT
+            arrow_length = 0.1
+            pygame.draw.line(DISPLAY, (0, 0, 0), coordinate_to_display(*w_pos), coordinate_to_display(*(w_pos+arrow_length*np.array([cos(w_angle), sin(w_angle)]))), 2)
+
         for i in range(len(inner_waypoints)):
-            w = inner_waypoints[i]
+            w_pos = inner_waypoints[i]
             if i < len(inner_waypoints)-1:
                 w2 = inner_waypoints[i + 1]
-                pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w), coordinate_to_display(*w2), 2)
-                pygame.draw.circle(DISPLAY, (180, 180, 255), coordinate_to_display(*w), 4)
+                pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w_pos), coordinate_to_display(*w2), 2)
+                pygame.draw.circle(DISPLAY, (180, 180, 255), coordinate_to_display(*w_pos), 4)
             else:
-                pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w), 4)
+                pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w_pos), 4)
 
 
-        pygame.draw.circle(DISPLAY, (0, 0, 255), coordinate_to_display(*goal), 4)  # DRAW CURRENT GOAL
+        pygame.draw.circle(DISPLAY, (0, 0, 255), coordinate_to_display(*goal[:2]), 4)  # DRAW CURRENT GOAL
 
         text = self.font.render("FPS = " + str(round(self.clock.get_fps())), True, (0, 0, 0), (255, 255, 255))
         DISPLAY.blit(text, self.textRect)

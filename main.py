@@ -36,29 +36,30 @@ class Planner:
     def __init__(self, waypoints=None):
         if waypoints is None:
             waypoints = []
+
         self.waypoints = waypoints
-        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
+        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints)[:,:2])
         self.goal_i = 0
         self.finished = False
 
-    def step(self, current_pos):
+    def step(self, current_pos, end_angle):
         if len(self.inner_waypoints) <= 1:
-            return current_pos
-        goal = self.inner_waypoints[self.goal_i]
+            return [*current_pos, end_angle]
+        pos_goal = self.inner_waypoints[self.goal_i]
 
-        dist_to_goal = length(current_pos, goal)
+        dist_to_goal = length(current_pos, pos_goal)
         if dist_to_goal < goal_reached_length:
             if self.goal_i < len(self.inner_waypoints)-1:
                 self.goal_i += 1
             else:
                 self.finished = True
                 print("Goal reached")
-        return goal
+        return pos_goal
 
     def add_waypoint(self, goal):
         self.waypoints.append(goal)
         # self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
-        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
+        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints)[:,:2])
 
     def reset_waypoints(self):
         self.waypoints = []
@@ -71,15 +72,15 @@ class Planner:
         d_length = 0.05
 
         for i in range(len(waypoints) - 1):
-            p1 = waypoints[i]
-            p2 = waypoints[i + 1]
+            p1 = waypoints[i,:2]
+            p2 = waypoints[i + 1,:2]
             length_waypoint = length(p1, p2)
             angle = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
             n = int(length_waypoint / d_length) + 1
             for j in range(n):
                 inner_waypoints.append(p1 + np.array([cos(angle), sin(angle)]) * j * d_length)
 
-        return inner_waypoints
+        return inner_waypoints # todo maybe need inner waypoints?
 
 
 if __name__ == '__main__':
@@ -96,7 +97,8 @@ if __name__ == '__main__':
 
     state = []  # state vector
     end_pos = robot_base + local_endp_start
-    planner = Planner([end_pos]+waypoints)
+    end_angle = sum(q)
+    planner = Planner([np.array([*end_pos,end_angle])]+waypoints)
 
     # goal = robot_base + local_endp_start
     gripper = [100, 100]
@@ -110,25 +112,30 @@ if __name__ == '__main__':
     should_save = False
     new_click_pos = None
     while not planner.finished and should_run:
-        goal = planner.step(end_pos)
+        goal = planner.step(end_pos, end_angle)
         display.render(q, goal, planner.waypoints, planner.inner_waypoints)  # RENDER
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
         mouse_x, mouse_y = display_to_coordinate(mouse_x_display, mouse_y_display)
-
+        goal_pos = goal[:2]
         new_left_click = pygame.mouse.get_pressed()[0]
         if not new_left_click and left_click:
             mouse_released = True
         if new_left_click and not left_click:
             # new click
-            new_click_pos = np.array([mouse_x, mouse_y])
-
-        if mouse_released:
-            new_waypoint = np.array([mouse_x, mouse_y])
+            new_click_pos = [mouse_x, mouse_y]
+            new_waypoint = np.array(new_click_pos+[0.])
             planner.add_waypoint(new_waypoint)
+
+        if new_left_click:
+            second_click_pos = [mouse_x, mouse_y]
+            angle = np.arctan2(second_click_pos[1] - new_click_pos[1], second_click_pos[0] - new_click_pos[0])
+            new_waypoint = np.array(second_click_pos+[angle])
+            planner.waypoints[-1][2] = angle
+            # planner.inner_waypoints[-1] = new_waypoint[:2]
         # USER CONTROL STUFF
         gripper = gripperControl(gripper)
 
-        new_keyboard_goal, dq_keyboard = keyboard_control(dt, goal)
+        new_keyboard_goal, dq_keyboard = keyboard_control(dt, goal_pos)
 
         keys = pygame.key.get_pressed()
         if keys[K_SPACE]:
@@ -146,7 +153,7 @@ if __name__ == '__main__':
             planner.reset_waypoints()
 
         # Control
-        local_goal = goal - robot_base
+        local_goal = goal_pos - robot_base
 
         # F_end can be replaced with RL action. array[2]
         if enable_robot:
