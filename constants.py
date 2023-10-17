@@ -10,10 +10,12 @@ CONTROL_DT = 0.02  # integration step time
 TOTAL_ARM_LENGTH = np.sum(ARMS_LENGTHS)
 ZERO_POS_BASE = 0.  # meter Base servo plus base
 
-# INITIAL_CONFIG_Q = np.array([np.pi*0.9, -np.pi * 0.5, -np.pi * 0.2])  # Initial robot angles
-# Start robot lying forwards
 INITIAL_CONFIG_Q = np.array([np.pi*0.1, -np.pi * 0.1, -np.pi * 0.0])  # Initial robot angles
-# INITIAL_CONFIG_SERVO = np.array([np.pi*0.5, 0., np.pi * 0.5]) # Initial robot angles
-# SERVO_OFFSET_MANUAL_VS_POWER = 0.1
-# These angles are the start positions of the servo in global frame
-# MIN_CONFIG_SERVO = np.array([np.pi * 0.9, np.pi*0.4, np.pi * 0.65])
+
+
+# PID CONTROLLER PARAMETERS
+Kp = 20  # proportional gain
+Ki = 0.0  # integral gain
+Kd = 0.1  # derivative gain
+goal_reached_length = 0.02
+velocity_constraint = np.array([0.1, 0.2, 0.3])*10 # rad/s

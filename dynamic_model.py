@@ -9,7 +9,7 @@ from constants import ARMS_LENGTHS, ARM_WIDTH, CONTROL_DT
 
 class RobotArm3dof:
 
-    def __init__(self, l, reset_q=None, dt=CONTROL_DT):
+    def __init__(self, l, velocity_constraint, reset_q=None, dt=CONTROL_DT):
         self.l = l  # link length
         if reset_q is not None:
             self.reset_q = reset_q.copy()
@@ -18,13 +18,14 @@ class RobotArm3dof:
         self.q = self.reset_q.copy()  # joint position
         # self.dq = np.array([0.0, 0.0, 0.0])  # joint velocity
         self.tau = np.array([0.0, 0.0, 0.0])  # joint torque
-        self.lambda_coeff = 0.001  # coefficient for robustness of singularity positions
+        self.lambda_coeff = 0.0001  # coefficient for robustness of singularity positions
 
         self.dt = dt
         self.end_p = np.zeros(2)  # end effector position (x,z)
         self.reset()
         # For visualization
         self.arm_regions = []
+        self.velocity_constraint = velocity_constraint
 
     # forward kinematics (until the second elbow, i.e., secondary endpoint)
     def FK2(self):
@@ -62,32 +63,17 @@ class RobotArm3dof:
     def FK_end_p(self):
         return self.FK_all_points()[-1]
 
-    # Jacobian matrix (until the end of the chain, i.e., primary endpoint)
     def Jacobian4(self):
         l = self.l
         q = self.q
         dxq1 = -l[1] * sin(q[0] + q[1])
-        dyq1 = l[1] * cos(q[0] + q[1]) # todo not right
+        dyq1 = l[1] * cos(q[0] + q[1])
         dxq2 = -l[2] * sin(q[0] + q[1] + q[2])
         dyq2 = l[2] * cos(q[0] + q[1] + q[2])
         J = np.array(
             [[-l[0] * sin(q[0]) + dxq1 + dxq2, dxq1 + dxq2, dxq2],
              [l[0] * cos(q[0]) + dyq1 + dyq2, dyq1 + dyq2, dyq2]])
         return J
-
-    # inverse kinematics (until joint 2)
-    def IK2(self, p):
-        q = np.zeros([2])
-        r = np.sqrt(p[0] ** 2 + p[1] ** 2)
-        q[1] = np.pi - math.acos((self.l[0] ** 2 + self.l[1] ** 2 - r ** 2) / (2 * self.l[0] * self.l[1]))
-        q[0] = math.atan2(p[1], p[0]) - math.acos((self.l[0] ** 2 - self.l[1] ** 2 + r ** 2) / (2 * self.l[0] * r))
-
-        return q
-
-    # state change
-    def _set_state(self, q, dq):
-        self.q = q
-        # self.dq = dq
 
     def get_dq(self, F_end):
         """"
@@ -112,19 +98,11 @@ class RobotArm3dof:
             return _Jt @ np.linalg.inv(_J @ _Jt + damp_identity)
 
         J_end_robust = J_robust(J_end)
+        dq = J_end_robust @ F_end  # + null_space_control
 
-        J_2_robust = J_robust(self.Jacobian2())
-        # null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
-        # null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
-
-        dq = J_end_robust @ F_end# + null_space_control
-        #      J_2_robust = J_robust(J2)
-        #     J_end_robust = J_robust(J_end)
-        #     J_2_robust = J_2_robust
-        #     null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(2)))
-        #     null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
-        #     dq = J_end_robust @ F_end + null_space_control
-
+        for i, v in enumerate(self.velocity_constraint):
+            if abs(dq[i]) > v:
+                dq /= abs(dq[i]) / v
         return dq
 
     def request_endpoint_force_xz(self, F):
@@ -139,7 +117,7 @@ class RobotArm3dof:
         """"
         F: float[2] the endpoint movement (x,z)
         """
-        # dq = self.constraint(dq) # todo needs something better
+        # dq = self.constraint(dq)
         self.q += dq * self.dt
         self.end_p = self.FK_end_p()
 
@@ -154,6 +132,13 @@ class RobotArm3dof:
         self.end_p = self.FK_end_p()
 
     def constraint(self, dq):
+        dq = dq.copy()
+        for i in range(len(dq)):
+            c = self.velocity_constraint[i]
+            dq[i] = np.clip(dq[i], -c, c)
+        return dq
+
+    def old_constraint(self, dq):
         global_pos_constraint_lb = [-10, -0.1]  # lower bound global constraint
         p = np.zeros(2)
         self.arm_regions = []

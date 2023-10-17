@@ -5,7 +5,7 @@ import numpy as np
 import pygame
 from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K_x, K_c, K_d, K_r
 
-from constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT
+from constants import ARMS_LENGTHS, Kp, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT, goal_reached_length, velocity_constraint, Ki, Kd
 from dynamic_model import PIDController, RobotArm3dof
 import shelve
 
@@ -18,13 +18,7 @@ dt = CONTROL_DT
 x0 = 0.0  # base x position
 y0 = 0.0  # base y position
 
-# PID CONTROLLER PARAMETERS
-Kp = 5  # proportional gain
-Ki = 0.1  # integral gain
-Kd = 0.1  # derivative gain
-goal_reached_length = 0.02
 global_db = shelve.open("cache")
-
 
 def cap_goal(goal):
     local_goal = goal - robot_base
@@ -44,18 +38,19 @@ class Planner:
         self.waypoints = waypoints
         self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
         self.goal_i = 0
+        self.finished = False
 
     def step(self, current_pos):
+        if len(self.inner_waypoints) <= 1:
+            return current_pos
         goal = self.inner_waypoints[self.goal_i]
 
         dist_to_goal = length(current_pos, goal)
         if dist_to_goal < goal_reached_length:
-            if self.goal_i < len(self.inner_waypoints):
+            if self.goal_i < len(self.inner_waypoints)-1:
                 self.goal_i += 1
             else:
-                # self.goal_i = 0
-                # self.inner_waypoints = []
-                # self.waypoints = []
+                self.finished = True
                 print("Goal reached")
         return goal
 
@@ -86,13 +81,12 @@ class Planner:
 
 
 if __name__ == '__main__':
-    waypoints = None
+    waypoints = []
     if 'waypoints' in global_db:
         waypoints = global_db['waypoints']
-    planner = Planner(waypoints)
     robot_base = np.array([0, ZERO_POS_BASE])
 
-    robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q)
+    robot_arm = RobotArm3dof(ARMS_LENGTHS, velocity_constraint, reset_q=INITIAL_CONFIG_Q)
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
     controller = PIDController(kp=Kp, ki=Ki, kd=Kd)
@@ -100,8 +94,9 @@ if __name__ == '__main__':
 
     state = []  # state vector
     end_pos = robot_base + local_endp_start
-    # goal = robot_base + local_endp_start
+    planner = Planner([end_pos]+waypoints)
 
+    # goal = robot_base + local_endp_start
     gripper = [100, 100]
 
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
@@ -109,7 +104,8 @@ if __name__ == '__main__':
     left_click = False
     mouse_released = False
     enable_robot = True
-    while True:
+    should_run = True
+    while not planner.finished and should_run:
         goal = planner.step(end_pos)
         display.render(q, goal, planner.waypoints, planner.inner_waypoints)  # RENDER
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
@@ -124,6 +120,7 @@ if __name__ == '__main__':
             planner.add_waypoint(new_waypoint)
         # USER CONTROL STUFF
         gripper = gripperControl(gripper)
+
         new_keyboard_goal, dq_keyboard = keyboard_control(dt, goal)
 
         keys = pygame.key.get_pressed()
@@ -131,7 +128,7 @@ if __name__ == '__main__':
             enable_robot = not enable_robot
             print("enable_robot", enable_robot)
         if keys[K_w]:
-            if 'waypoints' not in global_db or global_db['waypoints'] != planner.waypoints:
+            if 'waypoints' not in global_db or not (global_db['waypoints'] == planner.waypoints).all():
                 global_db['waypoints'] = planner.waypoints
             # if 'waypoints' not in global_db:
                 print('save waypoints', waypoints)
@@ -141,8 +138,6 @@ if __name__ == '__main__':
                 print('reset waypoints', waypoints)
                 del global_db['waypoints']
             planner.reset_waypoints()
-        # dq_keyboard = None
-        # goal = cap_goal(goal) # cap goal based on arm length
 
         # Control
         local_goal = goal - robot_base
@@ -151,7 +146,7 @@ if __name__ == '__main__':
         if enable_robot:
             # gets the end effector goal
             F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
-
+            # F_end[1] = 0
             if dq_keyboard is None:
                 end_pos, q, dq = robot_arm.request_endpoint_force_xz(F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
             else:
@@ -172,3 +167,6 @@ if __name__ == '__main__':
         step += 1
         left_click = new_left_click
         mouse_released = False
+    # if len(state) > 0:
+    #     state = np.array(state)
+    #     global_db['state'] = state
