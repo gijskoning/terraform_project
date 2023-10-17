@@ -98,7 +98,11 @@ class RobotArm3dof:
         F: float[2] the endpoint movement
         """
         # KINEMATIC CONTROL
-        J_end = self.Jacobian2()
+        if len(self.q) == 2:
+            J_end = self.Jacobian2()
+        else:
+            J_end = self.Jacobian4()
+
 
         # p_end = self.FK4()
         # p2 = self.FK2()

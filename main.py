@@ -125,19 +125,18 @@ if __name__ == '__main__':
             enable_robot = not enable_robot
             print("enable_robot", enable_robot)
         # dq_keyboard = None
-        # print('mouse_x, mouse_y', mouse_x, mouse_y, 'goal', goal, 'new mouse', display_to_coordinate(mouse_x, mouse_y))
-        # goal = cap_goal(goal)
+        # goal = cap_goal(goal) # cap goal based on arm length
 
         # Control
         local_goal = goal - robot_base
 
         # F_end can be replaced with RL action. array[2]
         if enable_robot:
+            # gets the end effector goal
             F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
 
             if dq_keyboard is None:
                 p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)
-
             else:
                 p, q, dq = robot_arm.move_joints(dq_keyboard)
                 # Set goal exactly to current endpoint
@@ -148,13 +147,6 @@ if __name__ == '__main__':
             else:
                 state.append([t, q[0], q[1], dq[0], dq[1], p[0], p[1]])
         t += dt
-
-        # Render
-        # for pol in robot_arm.arm_regions:
-        #     pol = [xy + robot_base for xy in pol]
-        #     print('pol', pol)
-        #     draw_rectangle_from_config(pol)
-
 
         # try to keep it real time with the desired step time
         display.tick()
