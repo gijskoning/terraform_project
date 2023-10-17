@@ -11,7 +11,8 @@ from gym_robotic_arm.dynamic_model import RobotArm3dof, PIDController
 
 from sim_utils import length, config_to_polygon_pygame, check_collision, config_to_polygon, arm_to_polygon
 from visualization_util import draw_rectangle_from_config, DISPLAY
-from visualize_robot_arm import Display
+from visualize_robot_arm import Display, display_to_coordinate
+
 # from gym_robotic_arm.arduino_communication import ArduinoControl
 # from gym_robotic_arm.envs.waveshare_camera import WaveShareCamera
 
@@ -28,7 +29,7 @@ Kd = 0.1  # derivative gain
 
 def keyboard_control(dt, goal):
     step_size = dt * 0.1
-    joint_step_size = step_size*300
+    joint_step_size = step_size * 300
     goal = goal.copy()
     joints = len(ARMS_LENGTHS)
     dq_keyboard = np.zeros(joints)
@@ -45,8 +46,8 @@ def keyboard_control(dt, goal):
     if keys[K_DOWN]:
         goal[1] -= step_size
 
-    for i, key_set in enumerate([[K_a, K_z],[K_s, K_x],[K_d, K_c]]):
-        up,down = key_set
+    for i, key_set in enumerate([[K_a, K_z], [K_s, K_x]]):  # ,[K_d, K_c]]):
+        up, down = key_set
         if keys[up]:
             dq_keyboard[i] += joint_step_size
         if keys[down]:
@@ -80,7 +81,9 @@ def gripperControl(goal):
 
 
 if __name__ == '__main__':
-    do_not_send = False
+    velocity_limits = [2., 2.]
+    waypoints = []
+
     robot_base = np.array([0, ZERO_POS_BASE])
 
     robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q)
@@ -99,14 +102,25 @@ if __name__ == '__main__':
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
     step = 0
     sent = 2
-
+    left_click = False
+    mouse_released = False
     while True:
-        display.render(q, goal)
-
+        display.render(q, goal, waypoints)
+        mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
+        mouse_x, mouse_y = display_to_coordinate(mouse_x_display, mouse_y_display)
         gripper = gripperControl(gripper)
 
-        goal, dq_keyboard = keyboard_control(dt, goal)
-        goal = cap_goal(goal)
+        new_left_click = pygame.mouse.get_pressed()[0]
+        if not new_left_click and left_click:
+            mouse_released = True
+
+        if mouse_released:
+            goal = np.array([mouse_x, mouse_y])
+            waypoints.append(goal)
+        # goal, dq_keyboard = keyboard_control(dt, goal)
+        dq_keyboard = None
+        # print('mouse_x, mouse_y', mouse_x, mouse_y, 'goal', goal, 'new mouse', display_to_coordinate(mouse_x, mouse_y))
+        # goal = cap_goal(goal)
 
         # Control
         local_goal = goal - robot_base
@@ -136,3 +150,5 @@ if __name__ == '__main__':
         display.tick()
         pygame.display.flip()  # update display
         step += 1
+        left_click = new_left_click
+        mouse_released = False

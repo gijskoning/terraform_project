@@ -54,6 +54,29 @@ from visualization_util import DISPLAY, WINDOW_SCALE
 #
 # pr = np.array((x / 10 + 0.0, y / 10 + 0.1))  # reference endpoint trajectory
 
+def coordinate_to_display(x, y): # WORKING
+    xc, yc = DISPLAY.get_rect().center
+    return int(x*WINDOW_SCALE) + xc, int(-y*WINDOW_SCALE) + yc
+
+def display_to_coordinate(x_display, y_display):
+    xc, yc = DISPLAY.get_rect().center
+    return (x_display - xc)/WINDOW_SCALE, -(y_display - yc)/WINDOW_SCALE
+
+x_coord = 2
+y_coord = 2
+
+
+
+# int(-y*WINDOW_SCALE) + yc = y_display
+# y = (y_display - yc)/WINDOW_SCALE
+
+print(coordinate_to_display(x_coord, y_coord))
+
+x_display, y_display = 200, 300
+print(display_to_coordinate(x_display, y_display))
+print(WINDOW_SCALE)
+
+#%%
 class Display:
 
     def __init__(self, dt, arm_lengths, start_pos):
@@ -81,7 +104,7 @@ class Display:
 
         self.start = start_pos
 
-    def render(self, q, goal):
+    def render(self, q, goal, waypoints):
         # real-time plotting
         DISPLAY.fill((255, 255, 255))  # clear window
         if len(self.arm_lengths) == 3:
@@ -91,7 +114,7 @@ class Display:
 
         # update individual link position
         x0, y0 = self.start
-        xbase, ybase = [0,0]
+        xbase, ybase = [0, 0]
         # print(q[0])
         # print(l1)
         x1 = x0 + l1 * np.cos(q[0])
@@ -119,8 +142,7 @@ class Display:
         points[:, 1] *= -1
         points[:] += np.array([xc, yc])
         pygame.draw.lines(DISPLAY, (0, 0, 255), False, points, 3)
-        xc,yc = DISPLAY.get_rect().center
-
+        xc, yc = DISPLAY.get_rect().center
 
         def draw_points(xy, color=(0, 0, 0)):
             for x, y in xy:
@@ -133,10 +155,17 @@ class Display:
 
         # pygame.draw.circle(window, (255, 0, 0), (int(window_scale * x4) + xc, int(-window_scale * y4) + yc),
         #                    3)  # draw hand / endpoint
-        pygame.draw.circle(DISPLAY, (0, 255, 0),
-                           (int(window_scale * goal[0]) + xc, int(-window_scale * goal[1]) + yc),
-                           3)  # draw reference position
+        # print('goal',goal)
+        # print('display',coordinate_to_display(*goal))
+        # print('display_back_to_coordinate',display_to_coordinate(*coordinate_to_display(*goal)))
+        for i in range(len(waypoints)):
+            w = waypoints[i]
+            if i < len(waypoints)-1:
+                w2 = waypoints[i + 1]
+                pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w), 4)
+                pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w), coordinate_to_display(*w2), 2)
 
+        pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*goal), 4)  # draw reference position
 
         text = self.font.render("FPS = " + str(round(self.clock.get_fps())), True, (0, 0, 0), (255, 255, 255))
         DISPLAY.blit(text, self.textRect)
