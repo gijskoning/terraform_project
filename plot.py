@@ -2,7 +2,9 @@ import shelve
 
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
+sns.set_theme()
 from constants import velocity_constraint
 
 

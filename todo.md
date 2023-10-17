@@ -18,3 +18,5 @@ TODO next:
 - Adhere to velocity constraints
   Which will create problems, since then it cannot follow so smooth anymore
 - Plot the velocity and acceleration on a nice plot over time.
+
+Okay so we want to have a certain angle goal as well.

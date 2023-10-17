@@ -1,6 +1,7 @@
 # SIMULATION PARAMETERS
 from math import sin, cos
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pygame
 from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K_x, K_c, K_d, K_r
@@ -8,7 +9,7 @@ from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K
 from constants import ARMS_LENGTHS, Kp, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT, goal_reached_length, velocity_constraint, Ki, Kd
 from dynamic_model import PIDController, RobotArm3dof
 import shelve
-
+from plot import plot_dq_constraints
 from sim_utils import length
 from user_input import gripperControl, keyboard_control
 from visualize_robot_arm import Display, display_to_coordinate
@@ -56,6 +57,7 @@ class Planner:
 
     def add_waypoint(self, goal):
         self.waypoints.append(goal)
+        # self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
         self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
 
     def reset_waypoints(self):
@@ -105,6 +107,8 @@ if __name__ == '__main__':
     mouse_released = False
     enable_robot = True
     should_run = True
+    should_save = False
+    new_click_pos = None
     while not planner.finished and should_run:
         goal = planner.step(end_pos)
         display.render(q, goal, planner.waypoints, planner.inner_waypoints)  # RENDER
@@ -114,6 +118,9 @@ if __name__ == '__main__':
         new_left_click = pygame.mouse.get_pressed()[0]
         if not new_left_click and left_click:
             mouse_released = True
+        if new_left_click and not left_click:
+            # new click
+            new_click_pos = np.array([mouse_x, mouse_y])
 
         if mouse_released:
             new_waypoint = np.array([mouse_x, mouse_y])
@@ -128,10 +135,9 @@ if __name__ == '__main__':
             enable_robot = not enable_robot
             print("enable_robot", enable_robot)
         if keys[K_w]:
-            if 'waypoints' not in global_db or not (global_db['waypoints'] == planner.waypoints).all():
-                global_db['waypoints'] = planner.waypoints
+            global_db['waypoints'] = planner.waypoints
             # if 'waypoints' not in global_db:
-                print('save waypoints', waypoints)
+            print('save waypoints', waypoints)
             #     global_db['waypoints'] = planner.waypoints
         if keys[K_r]:
             if 'waypoints' in global_db:
@@ -167,6 +173,11 @@ if __name__ == '__main__':
         step += 1
         left_click = new_left_click
         mouse_released = False
-    # if len(state) > 0:
-    #     state = np.array(state)
-    #     global_db['state'] = state
+    if len(state) > 0 and should_save:
+        state = np.array(state)
+        global_db['state'] = state
+    elif 'state' in global_db:
+        state =  global_db['state']
+
+    # plot_dq_constraints(state)
+    # plt.show()

@@ -18,4 +18,4 @@ Kp = 20  # proportional gain
 Ki = 0.0  # integral gain
 Kd = 0.1  # derivative gain
 goal_reached_length = 0.02
-velocity_constraint = np.array([0.1, 0.2, 0.3])*10 # rad/s
+velocity_constraint = np.array([0.01, 0.2, 0.6])*10 # rad/s
