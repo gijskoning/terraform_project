@@ -1,4 +1,6 @@
 # SIMULATION PARAMETERS
+from math import sin, cos
+
 import numpy as np
 import pygame
 from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K_x, K_c, K_d, K_r
@@ -9,7 +11,6 @@ import shelve
 
 from sim_utils import length
 from visualize_robot_arm import Display, display_to_coordinate
-from waypoint_solver import create_inner_waypoints
 
 dt = CONTROL_DT
 # ROBOT     PARAMETERS
@@ -76,18 +77,52 @@ def gripperControl(goal):
     return goal
 
 
+class Planner:
+
+    def __init__(self, waypoints=None):
+        if waypoints is None:
+            waypoints = []
+        self.waypoints = waypoints
+        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
+
+    def step(self):
+        pass
+    def add_waypoint(self, goal):
+        self.waypoints.append(goal)
+        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
+
+    def reset_waypoints(self):
+        self.waypoints = []
+        self.inner_waypoints = []
+
+    def create_inner_waypoints(self, waypoints):
+        if len(waypoints) == 0:
+            return []
+        inner_waypoints = [waypoints[0]]
+        d_length = 0.05
+
+        for i in range(len(waypoints) - 1):
+            p1 = waypoints[i]
+            p2 = waypoints[i + 1]
+            length_waypoint = length(p1, p2)
+            angle = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+            n = int(length_waypoint / d_length) + 1
+            for j in range(n):
+                inner_waypoints.append(p1 + np.array([cos(angle), sin(angle)]) * j * d_length)
+
+        return inner_waypoints
+
 if __name__ == '__main__':
-    waypoints = []
+    waypoints = None
     if 'waypoints' in global_db:
         waypoints = global_db['waypoints']
-
+    planner = Planner(waypoints)
     robot_base = np.array([0, ZERO_POS_BASE])
 
     robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q)
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
     controller = PIDController(kp=5, ki=0.1, kd=0.1)
-
     t = 0.0  # time
 
     state = []  # state vector
@@ -103,8 +138,8 @@ if __name__ == '__main__':
     mouse_released = False
     enable_robot = True
     while True:
-        inner_waypoints = create_inner_waypoints(np.array(waypoints))
-        display.render(q, goal, waypoints, inner_waypoints) # RENDER
+        planner.step()
+        display.render(q, goal, planner.waypoints, planner.inner_waypoints) # RENDER
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
         mouse_x, mouse_y = display_to_coordinate(mouse_x_display, mouse_y_display)
         gripper = gripperControl(gripper)
@@ -115,7 +150,7 @@ if __name__ == '__main__':
 
         if mouse_released:
             goal = np.array([mouse_x, mouse_y])
-            waypoints.append(goal)
+            planner.add_waypoint(goal)
         new_keyboard_goal, dq_keyboard = keyboard_control(dt, goal)
 
         keys = pygame.key.get_pressed()
@@ -125,13 +160,12 @@ if __name__ == '__main__':
         if keys[K_w]:
             if 'waypoints' not in global_db:
                 print('save waypoints', waypoints)
-                global_db['waypoints'] = waypoints
+                global_db['waypoints'] = planner.waypoints
         if keys[K_r]:
-            waypoints = []
             if 'waypoints' in global_db:
                 print('reset waypoints', waypoints)
                 del global_db['waypoints']
-                waypoints = []
+            planner.reset_waypoints()
         # dq_keyboard = None
         # goal = cap_goal(goal) # cap goal based on arm length
 

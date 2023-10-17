@@ -115,7 +115,6 @@ class Display:
         window_scale = self.window_scale
         xc, yc = self.xc, self.yc
 
-        # xy_list = list(zip([xbase, x0, x1], [ybase, y0, y1]))
         if l3 is not None:
             xy_list = list(zip([xbase, x0, x1, x2, x3], [ybase, y0, y1, y2, y3]))
         else:
@@ -138,11 +137,6 @@ class Display:
         draw_points(xy_list[0:-1])
         draw_points(xy_list[-1:], color=(255, 0, 0))
 
-        # pygame.draw.circle(window, (255, 0, 0), (int(window_scale * x4) + xc, int(-window_scale * y4) + yc),
-        #                    3)  # draw hand / endpoint
-        # print('goal',goal)
-        # print('display',coordinate_to_display(*goal))
-        # print('display_back_to_coordinate',display_to_coordinate(*coordinate_to_display(*goal)))
         for i in range(len(waypoints)):
             w = waypoints[i]
             if i < len(waypoints) - 1:

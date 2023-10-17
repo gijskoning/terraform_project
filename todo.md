@@ -4,10 +4,8 @@ Todo list:
 - Limit the torque in the arms
 - Want to add some mass to the arms
 
-OKAYYYY, first do something basic!! 
 The goal, is to follow a set of waypoints. (Cache this set)
-The solver should just output some smaller waypoints on these lines.
-Visualize 
+The solver should just output some smaller waypoints on these lines. - Done
 
 
 
