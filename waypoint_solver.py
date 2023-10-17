@@ -1,0 +1,1 @@
+def solve_goal(current_xy, goal_xy):

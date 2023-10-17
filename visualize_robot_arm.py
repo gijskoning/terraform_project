@@ -62,21 +62,6 @@ def display_to_coordinate(x_display, y_display):
     xc, yc = DISPLAY.get_rect().center
     return (x_display - xc)/WINDOW_SCALE, -(y_display - yc)/WINDOW_SCALE
 
-x_coord = 2
-y_coord = 2
-
-
-
-# int(-y*WINDOW_SCALE) + yc = y_display
-# y = (y_display - yc)/WINDOW_SCALE
-
-print(coordinate_to_display(x_coord, y_coord))
-
-x_display, y_display = 200, 300
-print(display_to_coordinate(x_display, y_display))
-print(WINDOW_SCALE)
-
-#%%
 class Display:
 
     def __init__(self, dt, arm_lengths, start_pos):
@@ -162,10 +147,14 @@ class Display:
             w = waypoints[i]
             if i < len(waypoints)-1:
                 w2 = waypoints[i + 1]
-                pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w), 4)
+                if i == 0:
+                    pygame.draw.circle(DISPLAY, (255, 0, 0), coordinate_to_display(*w), 6)
+                else:
+                    pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w), 6)
                 pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w), coordinate_to_display(*w2), 2)
-
-        pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*goal), 4)  # draw reference position
+            else:
+                pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w), 4)
+        pygame.draw.circle(DISPLAY, (0, 0, 255), coordinate_to_display(*goal), 4)  # draw reference position
 
         text = self.font.render("FPS = " + str(round(self.clock.get_fps())), True, (0, 0, 0), (255, 255, 255))
         DISPLAY.blit(text, self.textRect)

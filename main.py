@@ -1,20 +1,14 @@
 # SIMULATION PARAMETERS
 import numpy as np
 import pygame
-from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_z, K_s, K_x, K_c, K_d
+from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K_x, K_c, K_d, K_r
 
-from gym_robotic_arm.constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, ARM_WIDTH, \
-    CONTROL_DT
+from gym_robotic_arm.constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT
+from gym_robotic_arm.dynamic_model import PIDController, RobotArm3dof
+import shelve
 
-from gym_robotic_arm.dynamic_model import RobotArm3dof, PIDController
-# from serial import SerialException
-
-from sim_utils import length, config_to_polygon_pygame, check_collision, config_to_polygon, arm_to_polygon
-from visualization_util import draw_rectangle_from_config, DISPLAY
+from sim_utils import length
 from visualize_robot_arm import Display, display_to_coordinate
-
-# from gym_robotic_arm.arduino_communication import ArduinoControl
-# from gym_robotic_arm.envs.waveshare_camera import WaveShareCamera
 
 dt = CONTROL_DT
 # ROBOT     PARAMETERS
@@ -25,6 +19,7 @@ y0 = 0.0  # base y position
 Kp = 15  # proportional gain
 Ki = 0.3  # integral gain
 Kd = 0.1  # derivative gain
+global_db = shelve.open("cache")
 
 
 def keyboard_control(dt, goal):
@@ -46,7 +41,7 @@ def keyboard_control(dt, goal):
     if keys[K_DOWN]:
         goal[1] -= step_size
 
-    for i, key_set in enumerate([[K_a, K_z], [K_s, K_x] ,[K_d, K_c]]):
+    for i, key_set in enumerate([[K_a, K_z], [K_s, K_x], [K_d, K_c]]):
         up, down = key_set
         if keys[up]:
             dq_keyboard[i] += joint_step_size
@@ -83,6 +78,8 @@ def gripperControl(goal):
 if __name__ == '__main__':
     velocity_limits = [2., 2.]
     waypoints = []
+    if 'waypoints' in global_db:
+        waypoints = global_db['waypoints']
 
     robot_base = np.array([0, ZERO_POS_BASE])
 
@@ -106,7 +103,7 @@ if __name__ == '__main__':
     mouse_released = False
     enable_robot = True
     while True:
-        display.render(q, goal, waypoints)
+        display.render(q, goal, waypoints) # RENDER
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
         mouse_x, mouse_y = display_to_coordinate(mouse_x_display, mouse_y_display)
         gripper = gripperControl(gripper)
@@ -124,6 +121,16 @@ if __name__ == '__main__':
         if keys[K_SPACE]:
             enable_robot = not enable_robot
             print("enable_robot", enable_robot)
+        if keys[K_w]:
+            if 'waypoints' not in global_db:
+                print('save waypoints', waypoints)
+                global_db['waypoints'] = waypoints
+        if keys[K_r]:
+            waypoints = []
+            if 'waypoints' in global_db:
+                print('reset waypoints', waypoints)
+                del global_db['waypoints']
+                waypoints = []
         # dq_keyboard = None
         # goal = cap_goal(goal) # cap goal based on arm length
 
@@ -136,8 +143,9 @@ if __name__ == '__main__':
             F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
 
             if dq_keyboard is None:
-                p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)
+                p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)  # this requests a endpoint force and returns pos, angle,angle_speed
             else:
+                # not used for goals
                 p, q, dq = robot_arm.move_joints(dq_keyboard)
                 # Set goal exactly to current endpoint
                 goal = p + robot_base
