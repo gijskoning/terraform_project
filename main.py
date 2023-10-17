@@ -131,9 +131,11 @@ if __name__ == '__main__':
             enable_robot = not enable_robot
             print("enable_robot", enable_robot)
         if keys[K_w]:
-            if 'waypoints' not in global_db:
-                print('save waypoints', waypoints)
+            if 'waypoints' not in global_db or global_db['waypoints'] != planner.waypoints:
                 global_db['waypoints'] = planner.waypoints
+            # if 'waypoints' not in global_db:
+                print('save waypoints', waypoints)
+            #     global_db['waypoints'] = planner.waypoints
         if keys[K_r]:
             if 'waypoints' in global_db:
                 print('reset waypoints', waypoints)
@@ -151,7 +153,7 @@ if __name__ == '__main__':
             F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
 
             if dq_keyboard is None:
-                end_pos, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)  # this requests a endpoint force and returns pos, angle,angle_speed
+                end_pos, q, dq = robot_arm.request_endpoint_force_xz(F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
             else:
                 # not used for goals
                 end_pos, q, dq = robot_arm.move_joints(dq_keyboard)

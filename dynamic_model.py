@@ -39,12 +39,11 @@ class RobotArm3dof:
 
     # Jacobian matrix (until the second elbow, i.e., secondary endpoint)
     def Jacobian2(self):
-        '''*********** Student should fill in ***********'''
         l = self.l
         q = self.q
-        J = np.array([[-l[0] * sin(q[0]) - l[1] * sin(q[0] + q[1]), -l[1] * sin(q[0] + q[1])],
-                      [l[0] * cos(q[0]) + l[1] * cos(q[0] + q[1]), l[1] * cos(q[0] + q[1])]])
-        '''*********** Student should fill in ***********'''
+        J = np.array(
+            [[-l[0] * sin(q[0]) - l[1] * sin(q[0] + q[1]), -l[1] * sin(q[0] + q[1])],
+             [l[0] * cos(q[0]) + l[1] * cos(q[0] + q[1]), l[1] * cos(q[0] + q[1])]])
         return J
 
     # forward kinematics (until the end of the chain, i.e., primary endpoint)
@@ -55,7 +54,7 @@ class RobotArm3dof:
             q = other_q
         p1 = np.array([l[0] * cos(q[0]), l[0] * sin(q[0])])
         p2 = p1 + l[1] * np.array([cos(q[0] + q[1]), sin(q[0] + q[1])])
-        if len(l)==3:
+        if len(l) == 3:
             p3 = p2 + l[2] * np.array([cos(q[0] + q[1] + q[2]), sin(q[0] + q[1] + q[2])])
             return np.array([p1, p2, p3])
         return np.array([p1, p2])
@@ -65,17 +64,15 @@ class RobotArm3dof:
 
     # Jacobian matrix (until the end of the chain, i.e., primary endpoint)
     def Jacobian4(self):
-        '''*********** Student should fill in ***********'''
         l = self.l
         q = self.q
-        dxq1 = -l[2] * sin(q[0] + q[1])
-        dyq1 = l[2] * cos(q[0] + q[1])
+        dxq1 = -l[1] * sin(q[0] + q[1])
+        dyq1 = l[1] * cos(q[0] + q[1]) # todo not right
         dxq2 = -l[2] * sin(q[0] + q[1] + q[2])
         dyq2 = l[2] * cos(q[0] + q[1] + q[2])
         J = np.array(
             [[-l[0] * sin(q[0]) + dxq1 + dxq2, dxq1 + dxq2, dxq2],
              [l[0] * cos(q[0]) + dyq1 + dyq2, dyq1 + dyq2, dyq2]])
-        '''*********** Student should fill in ***********'''
         return J
 
     # inverse kinematics (until joint 2)
@@ -92,16 +89,12 @@ class RobotArm3dof:
         self.q = q
         # self.dq = dq
 
-    def get_dq(self, F):
+    def get_dq(self, F_end):
         """"
         F: float[2] the endpoint movement
         """
         # KINEMATIC CONTROL
-        if len(self.q) == 2:
-            J_end = self.Jacobian2()
-        else:
-            J_end = self.Jacobian4()
-
+        J_end = self.Jacobian4()
 
         # p_end = self.FK4()
         # p2 = self.FK2()
@@ -119,23 +112,30 @@ class RobotArm3dof:
             return _Jt @ np.linalg.inv(_J @ _Jt + damp_identity)
 
         J_end_robust = J_robust(J_end)
-        # J_2_robust = J_robust(self.Jacobian2())
+
+        J_2_robust = J_robust(self.Jacobian2())
         # null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(1)))
         # null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
 
-        dq = J_end_robust @ F  # + null_space_control
+        dq = J_end_robust @ F_end# + null_space_control
+        #      J_2_robust = J_robust(J2)
+        #     J_end_robust = J_robust(J_end)
+        #     J_2_robust = J_2_robust
+        #     null_space_velocity = np.concatenate((J_2_robust @ F_2, np.zeros(2)))
+        #     null_space_control = (np.identity(len(J_end[0])) - J_end_robust @ J_end) @ null_space_velocity
+        #     dq = J_end_robust @ F_end + null_space_control
 
         return dq
 
-    def move_endpoint_xz(self, F, gripper=[0,0]):
+    def request_endpoint_force_xz(self, F):
         """"
         F: float[2] the endpoint movement (x,z)
         """
         dq = self.get_dq(F)
 
-        return self.move_joints(dq, gripper)
+        return self.move_joints(dq)
 
-    def move_joints(self, dq, gripper=[0,0]):
+    def move_joints(self, dq):
         """"
         F: float[2] the endpoint movement (x,z)
         """
@@ -154,7 +154,7 @@ class RobotArm3dof:
         self.end_p = self.FK_end_p()
 
     def constraint(self, dq):
-        global_pos_constraint_lb = [-10, -0.1] # lower bound global constraint
+        global_pos_constraint_lb = [-10, -0.1]  # lower bound global constraint
         p = np.zeros(2)
         self.arm_regions = []
 
@@ -168,9 +168,10 @@ class RobotArm3dof:
                     p = np.zeros(2)
                 obstacles.append(arm_to_polygon(*p, np.sum(q[:i + 1]), l, ARM_WIDTH))
             return obstacles
+
         new_q = self.q + dq * self.dt
         # Check for base arm to not hit the base
-        if new_q[0] < 0.1*np.pi:
+        if new_q[0] < 0.1 * np.pi:
             dq[0] = 0
         # Other checks on all arms
         for i in range(len(dq)):

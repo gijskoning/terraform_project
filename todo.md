@@ -4,9 +4,6 @@ Todo list:
 - Limit the torque in the arms
 - Want to add some mass to the arms
 
-The goal, is to follow a set of waypoints. (Cache this set)
-The solver should just output some smaller waypoints on these lines. - Done
-
 
 
 About the planner:
@@ -15,3 +12,9 @@ But its a bit theoretic and maybe not so nice when used in real life.
 
 
 Could do RRT*, apply limits. With that global path
+
+
+TODO next:
+- Adhere to velocity constraints
+  Which will create problems, since then it cannot follow so smooth anymore
+- Plot the velocity and acceleration on a nice plot over time.

@@ -2,7 +2,7 @@
 import numpy as np
 
 # ARMS_LENGTHS = np.array([0.9, 0.3, 0.3])  # mm Third arm is last arm + gripper
-ARMS_LENGTHS = np.array([0.4, 0.4, 0.1])  # in Meter. Third arm is last arm + gripper
+ARMS_LENGTHS = np.array([0.4, 0.3, 0.1])  # in Meter. Third arm is last arm + gripper
 ARM_WIDTH = 0.05
 
 CONTROL_DT = 0.02  # integration step time
