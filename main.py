@@ -54,7 +54,7 @@ class Planner:
             else:
                 self.finished = True
                 print("Goal reached")
-        return pos_goal
+        return [*pos_goal, 0.] # todo
 
     def add_waypoint(self, goal):
         self.waypoints.append(goal)
@@ -105,7 +105,7 @@ if __name__ == '__main__':
 
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
     step = 0
-    left_click = False
+    was_click = False
     mouse_released = False
     enable_robot = True
     should_run = True
@@ -113,25 +113,24 @@ if __name__ == '__main__':
     new_click_pos = None
     while not planner.finished and should_run:
         goal = planner.step(end_pos, end_angle)
+        goal_pos = goal[:2]
+
         display.render(q, goal, planner.waypoints, planner.inner_waypoints)  # RENDER
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
         mouse_x, mouse_y = display_to_coordinate(mouse_x_display, mouse_y_display)
-        goal_pos = goal[:2]
-        new_left_click = pygame.mouse.get_pressed()[0]
-        if not new_left_click and left_click:
+        on_left_click = pygame.mouse.get_pressed()[0]
+        if not on_left_click and was_click:
             mouse_released = True
-        if new_left_click and not left_click:
+        if on_left_click and not was_click:
             # new click
             new_click_pos = [mouse_x, mouse_y]
             new_waypoint = np.array(new_click_pos+[0.])
             planner.add_waypoint(new_waypoint)
-
-        if new_left_click:
+        if on_left_click:
             second_click_pos = [mouse_x, mouse_y]
             angle = np.arctan2(second_click_pos[1] - new_click_pos[1], second_click_pos[0] - new_click_pos[0])
             new_waypoint = np.array(second_click_pos+[angle])
             planner.waypoints[-1][2] = angle
-            # planner.inner_waypoints[-1] = new_waypoint[:2]
         # USER CONTROL STUFF
         gripper = gripperControl(gripper)
 
@@ -153,8 +152,8 @@ if __name__ == '__main__':
             planner.reset_waypoints()
 
         # Control
-        local_goal = goal_pos - robot_base
-
+        local_goal_pos = goal_pos - robot_base
+        local_goal = local_goal_pos + [goal[2]]
         # F_end can be replaced with RL action. array[2]
         if enable_robot:
             # gets the end effector goal
@@ -178,13 +177,13 @@ if __name__ == '__main__':
         display.tick()
         pygame.display.flip()  # update display
         step += 1
-        left_click = new_left_click
+        was_click = on_left_click
         mouse_released = False
     if len(state) > 0 and should_save:
         state = np.array(state)
         global_db['state'] = state
     elif 'state' in global_db:
-        state =  global_db['state']
+        state = global_db['state']
 
     # plot_dq_constraints(state)
     # plt.show()

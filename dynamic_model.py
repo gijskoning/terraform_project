@@ -194,8 +194,9 @@ class PIDController:
         self.Kd = kd
 
     def control_step(self, p_end, goal, dt):
+        pos_goal = goal[:2]
         # KINEMATIC CONTROL
-        error = goal - p_end
+        error = pos_goal - p_end
         d_p = p_end - self.last_p_end
 
         # F_end can be replaced with a reinforcement learning action
