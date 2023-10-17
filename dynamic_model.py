@@ -3,13 +3,13 @@ import math
 
 from numpy import sin, cos
 
-from gym_robotic_arm.sim_utils import arm_to_polygon, check_collision
-from gym_robotic_arm.constants import ARMS_LENGTHS, ARM_WIDTH, CONTROL_DT
+from sim_utils import arm_to_polygon, check_collision
+from constants import ARMS_LENGTHS, ARM_WIDTH, CONTROL_DT
 
 
 class RobotArm3dof:
 
-    def __init__(self, l, reset_q=None, arduino_control=None, dt=CONTROL_DT):
+    def __init__(self, l, reset_q=None, dt=CONTROL_DT):
         self.l = l  # link length
         if reset_q is not None:
             self.reset_q = reset_q.copy()
@@ -20,7 +20,6 @@ class RobotArm3dof:
         self.tau = np.array([0.0, 0.0, 0.0])  # joint torque
         self.lambda_coeff = 0.001  # coefficient for robustness of singularity positions
 
-        self.arduino_control = arduino_control
         self.dt = dt
         self.end_p = np.zeros(2)  # end effector position (x,z)
         self.reset()
@@ -140,15 +139,9 @@ class RobotArm3dof:
         """"
         F: float[2] the endpoint movement (x,z)
         """
-        dq = self.constraint(dq)
+        # dq = self.constraint(dq) # todo needs something better
         self.q += dq * self.dt
         self.end_p = self.FK_end_p()
-
-        if self.arduino_control is not None:
-            pass
-            # Move angles
-            self.arduino_control.gripper = gripper
-            self.arduino_control.sent_action(self.q, debug=True)
 
         return self.end_p, self.q, dq
 
@@ -159,9 +152,6 @@ class RobotArm3dof:
             self.q = joint_angles.copy()
 
         self.end_p = self.FK_end_p()
-
-        if self.arduino_control is not None:
-            self.arduino_control.sent_action(self.q)
 
     def constraint(self, dq):
         global_pos_constraint_lb = [-10, -0.1] # lower bound global constraint

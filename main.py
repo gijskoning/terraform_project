@@ -3,12 +3,13 @@ import numpy as np
 import pygame
 from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K_x, K_c, K_d, K_r
 
-from gym_robotic_arm.constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT
-from gym_robotic_arm.dynamic_model import PIDController, RobotArm3dof
+from constants import ARMS_LENGTHS, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT
+from dynamic_model import PIDController, RobotArm3dof
 import shelve
 
 from sim_utils import length
 from visualize_robot_arm import Display, display_to_coordinate
+from waypoint_solver import create_inner_waypoints
 
 dt = CONTROL_DT
 # ROBOT     PARAMETERS
@@ -76,7 +77,6 @@ def gripperControl(goal):
 
 
 if __name__ == '__main__':
-    velocity_limits = [2., 2.]
     waypoints = []
     if 'waypoints' in global_db:
         waypoints = global_db['waypoints']
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q)
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
-    controller = PIDController(kp=15, ki=0.1, kd=0.1)
+    controller = PIDController(kp=5, ki=0.1, kd=0.1)
 
     t = 0.0  # time
 
@@ -103,7 +103,8 @@ if __name__ == '__main__':
     mouse_released = False
     enable_robot = True
     while True:
-        display.render(q, goal, waypoints) # RENDER
+        inner_waypoints = create_inner_waypoints(np.array(waypoints))
+        display.render(q, goal, waypoints, inner_waypoints) # RENDER
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
         mouse_x, mouse_y = display_to_coordinate(mouse_x_display, mouse_y_display)
         gripper = gripperControl(gripper)

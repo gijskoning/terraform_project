@@ -89,7 +89,7 @@ class Display:
 
         self.start = start_pos
 
-    def render(self, q, goal, waypoints):
+    def render(self, q, goal, waypoints, inner_waypoints):
         # real-time plotting
         DISPLAY.fill((255, 255, 255))  # clear window
         if len(self.arm_lengths) == 3:
@@ -145,15 +145,25 @@ class Display:
         # print('display_back_to_coordinate',display_to_coordinate(*coordinate_to_display(*goal)))
         for i in range(len(waypoints)):
             w = waypoints[i]
-            if i < len(waypoints)-1:
+            if i < len(waypoints) - 1:
                 w2 = waypoints[i + 1]
                 if i == 0:
-                    pygame.draw.circle(DISPLAY, (255, 0, 0), coordinate_to_display(*w), 6)
+                    pygame.draw.circle(DISPLAY, (255, 0, 0), coordinate_to_display(*w), 8)
                 else:
-                    pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w), 6)
-                pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w), coordinate_to_display(*w2), 2)
+                    pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w), 8)
+                # pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w), coordinate_to_display(*w2), 2)
             else:
                 pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w), 4)
+        for i in range(len(inner_waypoints)):
+            w = inner_waypoints[i]
+            if i < len(inner_waypoints)-1:
+                w2 = inner_waypoints[i + 1]
+                pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w), coordinate_to_display(*w2), 2)
+                pygame.draw.circle(DISPLAY, (100, 100, 255), coordinate_to_display(*w), 4)
+            else:
+                pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w), 4)
+
+
         pygame.draw.circle(DISPLAY, (0, 0, 255), coordinate_to_display(*goal), 4)  # draw reference position
 
         text = self.font.render("FPS = " + str(round(self.clock.get_fps())), True, (0, 0, 0), (255, 255, 255))
