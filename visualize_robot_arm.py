@@ -142,23 +142,22 @@ class Display:
             if i < len(waypoints) - 1:
                 w2 = waypoints[i + 1]
                 if i == 0:
-                    pygame.draw.circle(DISPLAY, (255, 0, 0), coordinate_to_display(*w), 8)
+                    pygame.draw.circle(DISPLAY, (255, 0, 0), coordinate_to_display(*w), 8) # DRAW START POINT
                 else:
-                    pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w), 8)
-                # pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w), coordinate_to_display(*w2), 2)
+                    pygame.draw.circle(DISPLAY, (150, 150, 150), coordinate_to_display(*w), 8) # DRAW OTHER WAYPOINTS
             else:
-                pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w), 4)
+                pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w), 4) # DRAW FINAL POINT
         for i in range(len(inner_waypoints)):
             w = inner_waypoints[i]
             if i < len(inner_waypoints)-1:
                 w2 = inner_waypoints[i + 1]
                 pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w), coordinate_to_display(*w2), 2)
-                pygame.draw.circle(DISPLAY, (100, 100, 255), coordinate_to_display(*w), 4)
+                pygame.draw.circle(DISPLAY, (180, 180, 255), coordinate_to_display(*w), 4)
             else:
                 pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w), 4)
 
 
-        pygame.draw.circle(DISPLAY, (0, 0, 255), coordinate_to_display(*goal), 4)  # draw reference position
+        pygame.draw.circle(DISPLAY, (0, 0, 255), coordinate_to_display(*goal), 4)  # DRAW CURRENT GOAL
 
         text = self.font.render("FPS = " + str(round(self.clock.get_fps())), True, (0, 0, 0), (255, 255, 255))
         DISPLAY.blit(text, self.textRect)

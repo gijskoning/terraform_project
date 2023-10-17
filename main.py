@@ -10,6 +10,7 @@ from dynamic_model import PIDController, RobotArm3dof
 import shelve
 
 from sim_utils import length
+from user_input import gripperControl, keyboard_control
 from visualize_robot_arm import Display, display_to_coordinate
 
 dt = CONTROL_DT
@@ -18,39 +19,11 @@ x0 = 0.0  # base x position
 y0 = 0.0  # base y position
 
 # PID CONTROLLER PARAMETERS
-Kp = 15  # proportional gain
-Ki = 0.3  # integral gain
+Kp = 5  # proportional gain
+Ki = 0.1  # integral gain
 Kd = 0.1  # derivative gain
+goal_reached_length = 0.02
 global_db = shelve.open("cache")
-
-
-def keyboard_control(dt, goal):
-    step_size = dt * 0.1
-    joint_step_size = step_size * 300
-    goal = goal.copy()
-    joints = len(ARMS_LENGTHS)
-    dq_keyboard = np.zeros(joints)
-    pygame.event.get()  # refresh keys
-    keys = pygame.key.get_pressed()
-
-    if keys[K_LEFT]:
-        goal[0] -= step_size
-    if keys[K_RIGHT]:
-        goal[0] += step_size
-
-    if keys[K_UP]:
-        goal[1] += step_size
-    if keys[K_DOWN]:
-        goal[1] -= step_size
-
-    for i, key_set in enumerate([[K_a, K_z], [K_s, K_x], [K_d, K_c]]):
-        up, down = key_set
-        if keys[up]:
-            dq_keyboard[i] += joint_step_size
-        if keys[down]:
-            dq_keyboard[i] -= joint_step_size
-    dq_keyboard = dq_keyboard if any(dq_keyboard) != 0 else None
-    return goal, dq_keyboard
 
 
 def cap_goal(goal):
@@ -63,20 +36,6 @@ def cap_goal(goal):
     return goal
 
 
-def gripperControl(goal):
-    pygame.event.get()  # refresh keys
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_q]:
-        goal[0] -= 1
-    if keys[pygame.K_e]:
-        goal[0] += 1
-    if keys[pygame.K_a]:
-        goal[1] -= 1
-    if keys[pygame.K_d]:
-        goal[1] += 1
-    return goal
-
-
 class Planner:
 
     def __init__(self, waypoints=None):
@@ -84,9 +43,22 @@ class Planner:
             waypoints = []
         self.waypoints = waypoints
         self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
+        self.goal_i = 0
 
-    def step(self):
-        pass
+    def step(self, current_pos):
+        goal = self.inner_waypoints[self.goal_i]
+
+        dist_to_goal = length(current_pos, goal)
+        if dist_to_goal < goal_reached_length:
+            if self.goal_i < len(self.inner_waypoints):
+                self.goal_i += 1
+            else:
+                # self.goal_i = 0
+                # self.inner_waypoints = []
+                # self.waypoints = []
+                print("Goal reached")
+        return goal
+
     def add_waypoint(self, goal):
         self.waypoints.append(goal)
         self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
@@ -112,6 +84,7 @@ class Planner:
 
         return inner_waypoints
 
+
 if __name__ == '__main__':
     waypoints = None
     if 'waypoints' in global_db:
@@ -122,35 +95,35 @@ if __name__ == '__main__':
     robot_arm = RobotArm3dof(l=ARMS_LENGTHS, reset_q=INITIAL_CONFIG_Q)
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
-    controller = PIDController(kp=5, ki=0.1, kd=0.1)
+    controller = PIDController(kp=Kp, ki=Ki, kd=Kd)
     t = 0.0  # time
 
     state = []  # state vector
-    p = robot_base + local_endp_start
-    goal = robot_base + local_endp_start
+    end_pos = robot_base + local_endp_start
+    # goal = robot_base + local_endp_start
 
     gripper = [100, 100]
 
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
     step = 0
-    sent = 2
     left_click = False
     mouse_released = False
     enable_robot = True
     while True:
-        planner.step()
-        display.render(q, goal, planner.waypoints, planner.inner_waypoints) # RENDER
+        goal = planner.step(end_pos)
+        display.render(q, goal, planner.waypoints, planner.inner_waypoints)  # RENDER
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
         mouse_x, mouse_y = display_to_coordinate(mouse_x_display, mouse_y_display)
-        gripper = gripperControl(gripper)
 
         new_left_click = pygame.mouse.get_pressed()[0]
         if not new_left_click and left_click:
             mouse_released = True
 
         if mouse_released:
-            goal = np.array([mouse_x, mouse_y])
-            planner.add_waypoint(goal)
+            new_waypoint = np.array([mouse_x, mouse_y])
+            planner.add_waypoint(new_waypoint)
+        # USER CONTROL STUFF
+        gripper = gripperControl(gripper)
         new_keyboard_goal, dq_keyboard = keyboard_control(dt, goal)
 
         keys = pygame.key.get_pressed()
@@ -178,17 +151,17 @@ if __name__ == '__main__':
             F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
 
             if dq_keyboard is None:
-                p, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)  # this requests a endpoint force and returns pos, angle,angle_speed
+                end_pos, q, dq = robot_arm.move_endpoint_xz(F_end, gripper)  # this requests a endpoint force and returns pos, angle,angle_speed
             else:
                 # not used for goals
-                p, q, dq = robot_arm.move_joints(dq_keyboard)
+                end_pos, q, dq = robot_arm.move_joints(dq_keyboard)
                 # Set goal exactly to current endpoint
-                goal = p + robot_base
+                goal = end_pos + robot_base
             # save state
             if len(q) == 3:
-                state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], p[0], p[1]])
+                state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], end_pos[0], end_pos[1]])
             else:
-                state.append([t, q[0], q[1], dq[0], dq[1], p[0], p[1]])
+                state.append([t, q[0], q[1], dq[0], dq[1], end_pos[0], end_pos[1]])
         t += dt
 
         # try to keep it real time with the desired step time
