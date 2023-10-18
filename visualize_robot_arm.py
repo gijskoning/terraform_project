@@ -37,6 +37,7 @@ import matplotlib.pyplot as plt
 import pygame
 from numpy import sin, cos
 
+from dynamic_model import RobotArm3dof
 from visualization_util import DISPLAY, WINDOW_SCALE
 
 '''SIMULATION'''
@@ -89,7 +90,7 @@ class Display:
 
         self.start = start_pos
 
-    def render(self, q, goal, waypoints, inner_waypoints):
+    def render(self, q, goal, waypoints, inner_waypoints, inner_q, robot:RobotArm3dof):
         # real-time plotting
         DISPLAY.fill((255, 255, 255))  # clear window
         if len(self.arm_lengths) == 3:
@@ -136,6 +137,19 @@ class Display:
 
         draw_points(xy_list[0:-1])
         draw_points(xy_list[-1:], color=(255, 0, 0))
+
+        for i in range(0,len(inner_q),20): # draw planned arm positions
+            q = inner_q[i]
+            # q_pos = np.zeros((len(q),2))
+            prev_pos = np.zeros(2)
+            q_pos = robot.FK_all_points(q)
+
+            for j in range(len(q)):
+                _q_pos = q_pos[j]
+                pygame.draw.line(DISPLAY, (220, 220, 220), coordinate_to_display(*prev_pos), coordinate_to_display(*_q_pos), 2)
+                pygame.draw.circle(DISPLAY, (200, 200, 200), coordinate_to_display(*_q_pos), 2)
+
+                prev_pos = _q_pos
 
         for i in range(len(waypoints)):
             w_pos = waypoints[i][:2]

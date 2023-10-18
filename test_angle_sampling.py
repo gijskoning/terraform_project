@@ -109,7 +109,7 @@ if __name__ == '__main__':
     end_pos = robot_base + local_endp_start
     end_angle = sum(q)
 
-    planner = Planner([np.array([*end_pos,end_angle])]+waypoints)
+    planner = Planner(robot_arm, [np.array([*end_pos,end_angle])]+waypoints)
 
     # goal = robot_base + local_endp_start
     gripper = [100, 100]

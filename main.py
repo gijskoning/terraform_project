@@ -36,14 +36,17 @@ def cap_goal(goal):
 
 class Planner:
 
-    def __init__(self, waypoints=None):
+    def __init__(self, robot:RobotArm3dof, waypoints=None):
         if waypoints is None:
             waypoints = []
 
         self.waypoints = waypoints
-        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
         self.goal_i = 0
         self.finished = False
+        self.robot = robot
+        self.initial_q = robot.q
+        self.inner_waypoints, self.inner_q = self.create_inner_waypoints(np.array(self.waypoints))
+
 
     def step(self, current_pos, current_end_angle):
         if len(self.inner_waypoints) <= 1:
@@ -63,19 +66,24 @@ class Planner:
     def add_waypoint(self, goal):
         self.waypoints.append(goal)
         # self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
-        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
+        self.inner_waypoints, self.inner_q = self.create_inner_waypoints(np.array(self.waypoints))
 
     def reset_waypoints(self):
         self.goal_i = 0
         self.waypoints = []
         self.inner_waypoints = []
 
+    def refresh_waypoints(self):
+        self.inner_waypoints, self.inner_q = self.create_inner_waypoints(np.array(self.waypoints))
+
     def create_inner_waypoints(self, waypoints):
         if len(waypoints) == 0:
             return []
         assert len(waypoints[0]) == 3, 'needs x,y,angle'
-        inner_waypoints = [waypoints[0]]
-
+        inner_waypoints = []
+        # inner_waypoints_vel = [np.zeros(3)]
+        inner_q = []
+        current_q0 = self.initial_q[0]
         for i in range(len(waypoints) - 1):
             p1 = waypoints[i, :2]
             angle1 = waypoints[i, 2]
@@ -91,10 +99,18 @@ class Planner:
             dir_to_next_point = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
             n = int(length_waypoint / inner_waypoint_step_size) + 1
             for j in range(n):
-                _pos = p1 + np.array([cos(dir_to_next_point), sin(dir_to_next_point)]) * j * inner_waypoint_step_size
-                inner_waypoints.append([*_pos, angle1 + diff_angle / n * j])
+                _end_pos = p1 + np.array([cos(dir_to_next_point), sin(dir_to_next_point)]) * j * inner_waypoint_step_size
+                goal_angle = angle1 + diff_angle / n * j
+                new_waypoint_pos_angle = [*_end_pos, goal_angle]
+                inner_waypoints.append(new_waypoint_pos_angle)
 
-        return np.array(inner_waypoints)
+                local_end_pos = _end_pos - robot_base
+                pos2 = local_end_pos - angle_to_pos(goal_angle, ARMS_LENGTHS[-1])
+                q0,q1 = self.robot.IK2(pos2, current_q0)
+                q3 = angle_diff(goal_angle, q0+q1)
+
+                inner_q.append([q0,q1,q3])
+        return np.array(inner_waypoints), np.array(inner_q)
 
 
 if __name__ == '__main__':
@@ -114,7 +130,7 @@ if __name__ == '__main__':
     end_pos = robot_base + local_endp_start
     end_angle = sum(q)
 
-    planner = Planner([np.array([*end_pos, end_angle])] + waypoints)
+    planner = Planner(robot_arm, [np.array([*end_pos, end_angle])] + waypoints)
 
     gripper = [100, 100]
 
@@ -130,7 +146,7 @@ if __name__ == '__main__':
         goal = planner.step(end_pos, end_angle)
         goal_pos = goal[:2]
 
-        display.render(q, goal, planner.waypoints, planner.inner_waypoints)  # RENDER
+        display.render(q, goal, planner.waypoints, planner.inner_waypoints, planner.inner_q, robot_arm)  # RENDER
         mouse_x_display, mouse_y_display = pygame.mouse.get_pos()
         mouse_x, mouse_y = display_to_coordinate(mouse_x_display, mouse_y_display)
         on_left_click = pygame.mouse.get_pressed()[0]
@@ -147,7 +163,7 @@ if __name__ == '__main__':
             new_waypoint = np.array(second_click_pos + [angle])
             planner.waypoints[-1][2] = angle
             if step % 2 == 0:
-                planner.inner_waypoints = planner.create_inner_waypoints(np.array(planner.waypoints))
+                planner.refresh_waypoints()
         # USER CONTROL STUFF
         gripper = gripperControl(gripper)
 
@@ -185,10 +201,13 @@ if __name__ == '__main__':
                 q2s = robot_arm.IK2(goal_p2, q[0])
                 new_q3 = angle_diff(goal[2], sum(q2s))
                 new_q = np.array([q2s[0], q2s[1], new_q3])
-                dq = angle_diff(new_q, q)
-                print('dq', dq, new_q, q, goal[2])
-                dq *= 100
-                end_pos, q, dq = robot_arm.move_joints(dq)
+                # todo we want to calculate the error in velocity, and error in position
+                aq = angle_diff(new_q, q)*3.
+                # F_end = controller.control_step(p_end, local_goal_pos, dt)
+
+                # print('dq', dq, new_q, q, goal[2])
+                # dq *= 100
+                end_pos, q, dq = robot_arm.move_joints(aq)
             end_angle = sum(q)
             # else:
             #     # not used for goals

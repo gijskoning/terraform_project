@@ -21,6 +21,7 @@ class RobotArm3dof:
         else:
             self.reset_q = np.array([0.0, 0.0, 0.0])
         self.q = self.reset_q.copy()  # joint position
+        self.dq = np.zeros_like(self.q)
         # self.dq = np.array([0.0, 0.0, 0.0])  # joint velocity
         self.tau = np.array([0.0, 0.0, 0.0])  # joint torque
         self.lambda_coeff = 0.0001  # coefficient for robustness of singularity positions
@@ -121,22 +122,22 @@ class RobotArm3dof:
 
         return self.move_joints(dq)
 
-    def move_joints(self, dq):
+    def move_joints(self, aq):
         """"
         F: float[2] the endpoint movement (x,z)
         """
         # dq = self.constraint(dq)
-        for i, v in enumerate(self.velocity_constraint):
-            if abs(dq[i]) > v:
-                dq /= abs(dq[i]) / v
-
-        self.q += dq * self.dt
+        # for i, v in enumerate(self.velocity_constraint):
+        #     if abs(dq[i]) > v:
+        #         dq /= abs(dq[i]) / v
+        self.dq += aq * self.dt
+        self.q += self.dq * self.dt
         # cap joints
         self.q[self.q > pi] -= 2 * pi
         self.q[self.q < -pi] += 2 * pi
         self.end_p = self.FK_end_p()
 
-        return self.end_p, self.q, dq
+        return self.end_p, self.q, self.dq
 
     def reset(self, joint_angles=None):
         if joint_angles is None:
