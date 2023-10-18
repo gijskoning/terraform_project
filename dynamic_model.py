@@ -7,6 +7,11 @@ from sim_utils import arm_to_polygon, check_collision
 from constants import ARMS_LENGTHS, ARM_WIDTH, CONTROL_DT
 
 
+def angle_diff(x, y):
+    diff = np.arctan2(np.sin(x - y), np.cos(x - y))
+    return diff
+
+
 class RobotArm3dof:
 
     def __init__(self, l, velocity_constraint, reset_q=None, dt=CONTROL_DT):
@@ -104,7 +109,6 @@ class RobotArm3dof:
 
         dq = J_end_robust @ F_end + null_space_control
 
-
         return dq
 
     def request_force_xz(self, F_2, F_end):
@@ -188,8 +192,11 @@ class RobotArm3dof:
 
         return dq
 
+
 def angle_to_pos(angle, length=1):
-    return length*np.array([cos(angle), sin(angle)])
+    return length * np.array([cos(angle), sin(angle)])
+
+
 def get_angle(p1, p2):
     return np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
 

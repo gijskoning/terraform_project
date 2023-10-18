@@ -9,7 +9,7 @@ from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K
 from constants import ARMS_LENGTHS, Kp, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT, inner_waypoint_step_size, goal_reached_angle, \
     goal_reached_length, \
     velocity_constraint, Ki, Kd
-from dynamic_model import PIDController, RobotArm3dof, angle_to_pos, get_angle
+from dynamic_model import PIDController, RobotArm3dof, angle_diff, angle_to_pos, get_angle
 import shelve
 from plot import plot_dq_constraints
 from sim_utils import length
@@ -51,9 +51,7 @@ class Planner:
         goal = self.inner_waypoints[self.goal_i]
 
         dist_to_goal = length(current_pos, goal[:2])
-        angle_error = abs(current_end_angle - goal[2])
-        if angle_error > pi:
-            angle_error -= pi
+        angle_error = abs(angle_diff(goal[2], current_end_angle))
         if dist_to_goal < goal_reached_length and angle_error < goal_reached_angle:
             if self.goal_i < len(self.inner_waypoints) - 1:
                 self.goal_i += 1
@@ -126,7 +124,7 @@ if __name__ == '__main__':
     mouse_released = False
     enable_robot = True
     should_run = True
-    should_save = False
+    should_save = True
     new_click_pos = None
     while not planner.finished and should_run:
         goal = planner.step(end_pos, end_angle)
@@ -186,9 +184,10 @@ if __name__ == '__main__':
                 end_pos, q, dq = robot_arm.request_force_xz(F_2, F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
             else:
                 q2s = robot_arm.IK2(goal_p2)
-                new_q3 = goal[2] - sum(q2s)
+                new_q3 = angle_diff(goal[2], sum(q2s))
                 new_q = np.array([q2s[0], q2s[1], new_q3])
-                dq = new_q - q
+                dq = angle_diff(new_q, q)
+                print('dq', dq, new_q, q, goal[2])
                 dq *= 100
                 end_pos, q, dq = robot_arm.move_joints(dq)
             end_angle = sum(q)
