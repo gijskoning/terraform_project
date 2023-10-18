@@ -173,8 +173,9 @@ if __name__ == '__main__':
         if enable_robot:
             # gets the end effector goal
             goal_p2 = local_goal_pos - angle_to_pos(goal[2], ARMS_LENGTHS[-1])
-
+            # todo sometimes the goal pos2 is unreachable by the first two joints
             ik_qs = robot_arm.IK2(goal_p2)
+
             if use_pid:
                 p_2, p_end = robot_arm.FK_all_points()[-2:]
 
