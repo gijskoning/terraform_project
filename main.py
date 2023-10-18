@@ -6,7 +6,8 @@ import numpy as np
 import pygame
 from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K_x, K_c, K_d, K_r
 
-from constants import ARMS_LENGTHS, Kp, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT, inner_waypoint_step_size, goal_reached_angle, goal_reached_length, \
+from constants import ARMS_LENGTHS, Kp, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT, inner_waypoint_step_size, goal_reached_angle, \
+    goal_reached_length, \
     velocity_constraint, Ki, Kd
 from dynamic_model import PIDController, RobotArm3dof, angle_to_pos, get_angle
 import shelve
@@ -108,7 +109,7 @@ if __name__ == '__main__':
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
     controller = PIDController(kp=Kp, ki=Ki, kd=0.1)
-    controller_angle = PIDController(kp=Kp*100, ki=Ki, kd=0.01)
+    controller_angle = PIDController(kp=Kp, ki=Ki, kd=0.1)
     t = 0.0  # time
 
     state = []  # state vector
@@ -160,9 +161,7 @@ if __name__ == '__main__':
             print("enable_robot", enable_robot)
         if keys[K_w]:
             global_db['waypoints'] = planner.waypoints
-            # if 'waypoints' not in global_db:
             print('save waypoints', waypoints)
-            #     global_db['waypoints'] = planner.waypoints
         if keys[K_r]:
             if 'waypoints' in global_db:
                 print('reset waypoints', waypoints)
@@ -172,19 +171,26 @@ if __name__ == '__main__':
         # Control
         local_goal_pos = goal_pos - robot_base
         local_goal = np.array([*local_goal_pos, goal[2]])
-        # F_end can be replaced with RL action. array[2]
+        use_pid = False
         if enable_robot:
             # gets the end effector goal
-            p_2, p_end = robot_arm.FK_all_points()[-2:]
             goal_p2 = local_goal_pos - angle_to_pos(goal[2], ARMS_LENGTHS[-1])
 
             ik_qs = robot_arm.IK2(goal_p2)
+            if use_pid:
+                p_2, p_end = robot_arm.FK_all_points()[-2:]
 
-            F_end = controller.control_step(p_end, local_goal_pos, dt)
+                F_end = controller.control_step(p_end, local_goal_pos, dt)
 
-            F_2 = controller_angle.control_step(p_2, goal_p2, dt)
-            # if dq_keyboard is None:
-            end_pos, q, dq = robot_arm.request_force_xz(F_2, F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
+                F_2 = controller_angle.control_step(p_2, goal_p2, dt)
+                end_pos, q, dq = robot_arm.request_force_xz(F_2, F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
+            else:
+                q2s = robot_arm.IK2(goal_p2)
+                new_q3 = goal[2] - sum(q2s)
+                new_q = np.array([q2s[0], q2s[1], new_q3])
+                dq = new_q - q
+                dq *= 100
+                end_pos, q, dq = robot_arm.move_joints(dq)
             end_angle = sum(q)
             # else:
             #     # not used for goals

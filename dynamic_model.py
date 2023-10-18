@@ -104,9 +104,7 @@ class RobotArm3dof:
 
         dq = J_end_robust @ F_end + null_space_control
 
-        for i, v in enumerate(self.velocity_constraint):
-            if abs(dq[i]) > v:
-                dq /= abs(dq[i]) / v
+
         return dq
 
     def request_force_xz(self, F_2, F_end):
@@ -122,7 +120,14 @@ class RobotArm3dof:
         F: float[2] the endpoint movement (x,z)
         """
         # dq = self.constraint(dq)
+        for i, v in enumerate(self.velocity_constraint):
+            if abs(dq[i]) > v:
+                dq /= abs(dq[i]) / v
+
         self.q += dq * self.dt
+        # cap joints
+        self.q[self.q > pi] -= 2 * pi
+        self.q[self.q < -pi] += 2 * pi
         self.end_p = self.FK_end_p()
 
         return self.end_p, self.q, dq
