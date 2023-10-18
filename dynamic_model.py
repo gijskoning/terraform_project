@@ -75,6 +75,15 @@ class RobotArm3dof:
              [l[0] * cos(q[0]) + dyq1 + dyq2, dyq1 + dyq2, dyq2]])
         return J
 
+    # inverse kinematics (until joint 2)
+    def IK2(self, p):
+        q = np.zeros([2])
+        r = np.sqrt(p[0] ** 2 + p[1] ** 2)
+        q[1] = np.pi - math.acos((self.l[0] ** 2 + self.l[1] ** 2 - r ** 2) / (2 * self.l[0] * self.l[1]))
+        q[0] = math.atan2(p[1], p[0]) - math.acos((self.l[0] ** 2 - self.l[1] ** 2 + r ** 2) / (2 * self.l[0] * r))
+
+        return q
+
     def get_dq(self, F_end):
         """"
         F: float[2] the endpoint movement

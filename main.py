@@ -1,5 +1,5 @@
 # SIMULATION PARAMETERS
-from math import sin, cos
+from math import pi, sin, cos
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,6 +21,7 @@ y0 = 0.0  # base y position
 
 global_db = shelve.open("cache")
 
+
 def cap_goal(goal):
     local_goal = goal - robot_base
     l = length(local_goal)
@@ -38,7 +39,7 @@ class Planner:
             waypoints = []
 
         self.waypoints = waypoints
-        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints)[:,:2])
+        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
         self.goal_i = 0
         self.finished = False
 
@@ -49,17 +50,17 @@ class Planner:
 
         dist_to_goal = length(current_pos, pos_goal)
         if dist_to_goal < goal_reached_length:
-            if self.goal_i < len(self.inner_waypoints)-1:
+            if self.goal_i < len(self.inner_waypoints) - 1:
                 self.goal_i += 1
             else:
                 self.finished = True
                 print("Goal reached")
-        return [*pos_goal, 0.] # todo
+        return [*pos_goal, 0.]  # todo
 
     def add_waypoint(self, goal):
         self.waypoints.append(goal)
         # self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
-        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints)[:,:2])
+        self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
 
     def reset_waypoints(self):
         self.waypoints = []
@@ -68,19 +69,31 @@ class Planner:
     def create_inner_waypoints(self, waypoints):
         if len(waypoints) == 0:
             return []
+        assert len(waypoints[0]) == 3, 'needs x,y,angle'
         inner_waypoints = [waypoints[0]]
         d_length = 0.05
 
         for i in range(len(waypoints) - 1):
-            p1 = waypoints[i,:2]
-            p2 = waypoints[i + 1,:2]
-            length_waypoint = length(p1, p2)
-            angle = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
-            n = int(length_waypoint / d_length) + 1
-            for j in range(n):
-                inner_waypoints.append(p1 + np.array([cos(angle), sin(angle)]) * j * d_length)
+            p1 = waypoints[i, :2]
+            angle1 = waypoints[i, 2]
+            p2 = waypoints[i + 1, :2]
+            angle2 = waypoints[i + 1, 2]
+            print('angle1', angle1, 'angle2', angle2)
+            diff_angle = angle2 - angle1
+            if diff_angle > pi:
+                diff_angle -= 2*pi
+            if diff_angle < -pi:
+                diff_angle += 2*pi
 
-        return inner_waypoints # todo maybe need inner waypoints?
+            print('diff angle', diff_angle)
+            length_waypoint = length(p1, p2)
+            dir_to_next_point = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+            n = int(length_waypoint / d_length) + 1
+            for j in range(1, n):
+                _pos = p1 + np.array([cos(dir_to_next_point), sin(dir_to_next_point)]) * j * d_length
+                inner_waypoints.append([*_pos, angle1 + diff_angle / n * j])  # todo might be j+1?
+
+        return np.array(inner_waypoints)
 
 
 if __name__ == '__main__':
@@ -98,7 +111,8 @@ if __name__ == '__main__':
     state = []  # state vector
     end_pos = robot_base + local_endp_start
     end_angle = sum(q)
-    planner = Planner([np.array([*end_pos,end_angle])]+waypoints)
+
+    planner = Planner([np.array([*end_pos, end_angle])] + waypoints)
 
     # goal = robot_base + local_endp_start
     gripper = [100, 100]
@@ -124,13 +138,16 @@ if __name__ == '__main__':
         if on_left_click and not was_click:
             # new click
             new_click_pos = [mouse_x, mouse_y]
-            new_waypoint = np.array(new_click_pos+[0.])
+            new_waypoint = np.array(new_click_pos + [0.])
             planner.add_waypoint(new_waypoint)
         if on_left_click:
             second_click_pos = [mouse_x, mouse_y]
             angle = np.arctan2(second_click_pos[1] - new_click_pos[1], second_click_pos[0] - new_click_pos[0])
-            new_waypoint = np.array(second_click_pos+[angle])
+            new_waypoint = np.array(second_click_pos + [angle])
+            print('angle', angle)
             planner.waypoints[-1][2] = angle
+            if step % 2 == 0:
+                planner.inner_waypoints = planner.create_inner_waypoints(np.array(planner.waypoints))
         # USER CONTROL STUFF
         gripper = gripperControl(gripper)
 

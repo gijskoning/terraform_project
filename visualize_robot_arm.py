@@ -152,10 +152,16 @@ class Display:
             pygame.draw.line(DISPLAY, (0, 0, 0), coordinate_to_display(*w_pos), coordinate_to_display(*(w_pos+arrow_length*np.array([cos(w_angle), sin(w_angle)]))), 2)
 
         for i in range(len(inner_waypoints)):
-            w_pos = inner_waypoints[i]
+            w_pos = inner_waypoints[i, :2]
+            w_angle = inner_waypoints[i,2]
+            angle_arrow_length = 0.04
             if i < len(inner_waypoints)-1:
-                w2 = inner_waypoints[i + 1]
-                pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w_pos), coordinate_to_display(*w2), 2)
+                # draw inner waypoint angle
+                pygame.draw.line(DISPLAY, (0, 0, 0), coordinate_to_display(*w_pos),
+                                 coordinate_to_display(*(w_pos + angle_arrow_length * np.array([cos(w_angle), sin(w_angle)]))), 2)
+
+                w2_pos = inner_waypoints[i + 1, :2]
+                pygame.draw.line(DISPLAY, (150, 150, 150), coordinate_to_display(*w_pos), coordinate_to_display(*w2_pos), 2)
                 pygame.draw.circle(DISPLAY, (180, 180, 255), coordinate_to_display(*w_pos), 4)
             else:
                 pygame.draw.circle(DISPLAY, (0, 255, 0), coordinate_to_display(*w_pos), 4)
