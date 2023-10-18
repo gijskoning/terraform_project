@@ -138,7 +138,8 @@ class Display:
         draw_points(xy_list[0:-1])
         draw_points(xy_list[-1:], color=(255, 0, 0))
 
-        for i in range(0,len(inner_q),20): # draw planned arm positions
+        # for i in range(0,len(inner_q),1): # draw planned arm positions
+        for i in range(0,100,10): # draw planned arm positions
             q = inner_q[i]
             # q_pos = np.zeros((len(q),2))
             prev_pos = np.zeros(2)

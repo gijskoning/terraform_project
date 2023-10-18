@@ -21,4 +21,4 @@ goal_reached_length = 0.02
 goal_reached_angle = 10 * np.pi / 180
 inner_waypoint_step_size = 0.01
 
-velocity_constraint = np.array([0.01, 0.2, 0.6])*30 # rad/s
+velocity_constraint = np.array([0.01, 0.2, 0.6])*1 # rad/s

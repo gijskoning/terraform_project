@@ -32,6 +32,7 @@ class RobotArm3dof:
         # For visualization
         self.arm_regions = []
         self.velocity_constraint = velocity_constraint
+        self.endpoint_vel = 0.
 
     # forward kinematics (until the second elbow, i.e., secondary endpoint)
     def FK2(self):
@@ -114,13 +115,13 @@ class RobotArm3dof:
 
         return dq
 
-    def request_force_xz(self, F_2, F_end):
+    def request_force_xz(self, F_end):
         """"
         F: float[2] the endpoint movement (x,z)
         """
-        dq = self.get_dq(F_2, F_end)
+        aq = self.get_dq(np.zeros(2), F_end)
 
-        return self.move_joints(dq)
+        return self.move_joints(aq)
 
     def move_joints(self, aq):
         """"
@@ -135,9 +136,20 @@ class RobotArm3dof:
         # cap joints
         self.q[self.q > pi] -= 2 * pi
         self.q[self.q < -pi] += 2 * pi
+        self.endpoint_vel = self.Jacobian3() @ self.dq
         self.end_p = self.FK_end_p()
 
         return self.end_p, self.q, self.dq
+
+    def within_joint_vel_constraints(self, dq):
+        return np.all(np.abs(dq) <= self.velocity_constraint)
+
+    def scale_vel_to_constraints(self, dq):
+        dq = dq.copy()
+        for i, v in enumerate(self.velocity_constraint):
+            if abs(dq[i]) > v:
+                dq /= abs(dq[i]) / v
+        return dq
 
     def reset(self, joint_angles=None):
         if joint_angles is None:
@@ -216,16 +228,15 @@ class PIDController:
         self.Ki = ki
         self.Kd = kd
 
-    def control_step(self, p_end, goal, dt):
-        pos_goal = goal[:2]
+    def control_step(self, current, goal, dt):
         # KINEMATIC CONTROL
-        error = pos_goal - p_end
-        d_p = p_end - self.last_p_end
+        error = goal - current
+        d_p = current - self.last_p_end
 
         F_end = self.Kp * error + self.Ki * self.se * dt - self.Kd * d_p / dt
 
         self.se += error
-        self.last_p_end = p_end
+        self.last_p_end = current
 
         return F_end
 
