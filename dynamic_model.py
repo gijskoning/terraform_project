@@ -81,13 +81,15 @@ class RobotArm3dof:
         return J
 
     # inverse kinematics (until joint 2)
-    def IK2(self, p):
-        q = np.zeros([2])
+    def IK2(self, p, q0):
+        sol_q = np.zeros([2, 2])
         r = np.sqrt(p[0] ** 2 + p[1] ** 2)
-        q[1] = pi - math.acos((self.l[0] ** 2 + self.l[1] ** 2 - r ** 2) / (2 * self.l[0] * self.l[1]))
-        q[0] = math.atan2(p[1], p[0]) - math.acos((self.l[0] ** 2 - self.l[1] ** 2 + r ** 2) / (2 * self.l[0] * r))
-
-        return q
+        for i, _sign in enumerate([-1, 1]):
+            sol_q[i, 1] = _sign * (pi - math.acos((self.l[0] ** 2 + self.l[1] ** 2 - r ** 2) / (2 * self.l[0] * self.l[1])))
+            sol_q[i, 0] = math.atan2(p[1], p[0]) - _sign * math.acos((self.l[0] ** 2 - self.l[1] ** 2 + r ** 2) / (2 * self.l[0] * r))
+        if abs(angle_diff(sol_q[0, 0], q0)) < abs(angle_diff(sol_q[1, 0], q0)):
+            return sol_q[0]
+        return sol_q[1]
 
     def get_dq(self, F_2, F_end):
         """"

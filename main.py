@@ -173,8 +173,6 @@ if __name__ == '__main__':
         if enable_robot:
             # gets the end effector goal
             goal_p2 = local_goal_pos - angle_to_pos(goal[2], ARMS_LENGTHS[-1])
-            # todo sometimes the goal pos2 is unreachable by the first two joints
-            ik_qs = robot_arm.IK2(goal_p2)
 
             if use_pid:
                 p_2, p_end = robot_arm.FK_all_points()[-2:]
@@ -184,7 +182,7 @@ if __name__ == '__main__':
                 F_2 = controller_angle.control_step(p_2, goal_p2, dt)
                 end_pos, q, dq = robot_arm.request_force_xz(F_2, F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
             else:
-                q2s = robot_arm.IK2(goal_p2)
+                q2s = robot_arm.IK2(goal_p2, q[0])
                 new_q3 = angle_diff(goal[2], sum(q2s))
                 new_q = np.array([q2s[0], q2s[1], new_q3])
                 dq = angle_diff(new_q, q)
