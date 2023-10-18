@@ -6,8 +6,9 @@ import numpy as np
 import pygame
 from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K_x, K_c, K_d, K_r
 
-from constants import ARMS_LENGTHS, Kp, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT, goal_reached_length, velocity_constraint, Ki, Kd
-from dynamic_model import PIDController, RobotArm3dof
+from constants import ARMS_LENGTHS, Kp, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT, inner_waypoint_step_size, goal_reached_angle, goal_reached_length, \
+    velocity_constraint, Ki, Kd
+from dynamic_model import PIDController, RobotArm3dof, angle_to_pos, get_angle
 import shelve
 from plot import plot_dq_constraints
 from sim_utils import length
@@ -43,19 +44,22 @@ class Planner:
         self.goal_i = 0
         self.finished = False
 
-    def step(self, current_pos, end_angle):
+    def step(self, current_pos, current_end_angle):
         if len(self.inner_waypoints) <= 1:
-            return [*current_pos, end_angle]
-        pos_goal = self.inner_waypoints[self.goal_i]
+            return [*current_pos, current_end_angle]
+        goal = self.inner_waypoints[self.goal_i]
 
-        dist_to_goal = length(current_pos, pos_goal)
-        if dist_to_goal < goal_reached_length:
+        dist_to_goal = length(current_pos, goal[:2])
+        angle_error = abs(current_end_angle - goal[2])
+        if angle_error > pi:
+            angle_error -= pi
+        if dist_to_goal < goal_reached_length and angle_error < goal_reached_angle:
             if self.goal_i < len(self.inner_waypoints) - 1:
                 self.goal_i += 1
             else:
                 self.finished = True
                 print("Goal reached")
-        return [*pos_goal, 0.]  # todo
+        return goal
 
     def add_waypoint(self, goal):
         self.waypoints.append(goal)
@@ -63,6 +67,7 @@ class Planner:
         self.inner_waypoints = self.create_inner_waypoints(np.array(self.waypoints))
 
     def reset_waypoints(self):
+        self.goal_i = 0
         self.waypoints = []
         self.inner_waypoints = []
 
@@ -71,27 +76,24 @@ class Planner:
             return []
         assert len(waypoints[0]) == 3, 'needs x,y,angle'
         inner_waypoints = [waypoints[0]]
-        d_length = 0.05
 
         for i in range(len(waypoints) - 1):
             p1 = waypoints[i, :2]
             angle1 = waypoints[i, 2]
             p2 = waypoints[i + 1, :2]
             angle2 = waypoints[i + 1, 2]
-            print('angle1', angle1, 'angle2', angle2)
             diff_angle = angle2 - angle1
             if diff_angle > pi:
-                diff_angle -= 2*pi
+                diff_angle -= 2 * pi
             if diff_angle < -pi:
-                diff_angle += 2*pi
+                diff_angle += 2 * pi
 
-            print('diff angle', diff_angle)
             length_waypoint = length(p1, p2)
             dir_to_next_point = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
-            n = int(length_waypoint / d_length) + 1
-            for j in range(1, n):
-                _pos = p1 + np.array([cos(dir_to_next_point), sin(dir_to_next_point)]) * j * d_length
-                inner_waypoints.append([*_pos, angle1 + diff_angle / n * j])  # todo might be j+1?
+            n = int(length_waypoint / inner_waypoint_step_size) + 1
+            for j in range(n):
+                _pos = p1 + np.array([cos(dir_to_next_point), sin(dir_to_next_point)]) * j * inner_waypoint_step_size
+                inner_waypoints.append([*_pos, angle1 + diff_angle / n * j])
 
         return np.array(inner_waypoints)
 
@@ -105,7 +107,8 @@ if __name__ == '__main__':
     robot_arm = RobotArm3dof(ARMS_LENGTHS, velocity_constraint, reset_q=INITIAL_CONFIG_Q)
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
-    controller = PIDController(kp=Kp, ki=Ki, kd=Kd)
+    controller = PIDController(kp=Kp, ki=Ki, kd=0.1)
+    controller_angle = PIDController(kp=Kp*100, ki=Ki, kd=0.01)
     t = 0.0  # time
 
     state = []  # state vector
@@ -114,7 +117,6 @@ if __name__ == '__main__':
 
     planner = Planner([np.array([*end_pos, end_angle])] + waypoints)
 
-    # goal = robot_base + local_endp_start
     gripper = [100, 100]
 
     display = Display(dt, ARMS_LENGTHS, start_pos=robot_base)
@@ -144,7 +146,6 @@ if __name__ == '__main__':
             second_click_pos = [mouse_x, mouse_y]
             angle = np.arctan2(second_click_pos[1] - new_click_pos[1], second_click_pos[0] - new_click_pos[0])
             new_waypoint = np.array(second_click_pos + [angle])
-            print('angle', angle)
             planner.waypoints[-1][2] = angle
             if step % 2 == 0:
                 planner.inner_waypoints = planner.create_inner_waypoints(np.array(planner.waypoints))
@@ -170,19 +171,26 @@ if __name__ == '__main__':
 
         # Control
         local_goal_pos = goal_pos - robot_base
-        local_goal = local_goal_pos + [goal[2]]
+        local_goal = np.array([*local_goal_pos, goal[2]])
         # F_end can be replaced with RL action. array[2]
         if enable_robot:
             # gets the end effector goal
-            F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
-            # F_end[1] = 0
-            if dq_keyboard is None:
-                end_pos, q, dq = robot_arm.request_endpoint_force_xz(F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
-            else:
-                # not used for goals
-                end_pos, q, dq = robot_arm.move_joints(dq_keyboard)
-                # Set goal exactly to current endpoint
-                goal = end_pos + robot_base
+            p_2, p_end = robot_arm.FK_all_points()[-2:]
+            goal_p2 = local_goal_pos - angle_to_pos(goal[2], ARMS_LENGTHS[-1])
+
+            ik_qs = robot_arm.IK2(goal_p2)
+
+            F_end = controller.control_step(p_end, local_goal_pos, dt)
+
+            F_2 = controller_angle.control_step(p_2, goal_p2, dt)
+            # if dq_keyboard is None:
+            end_pos, q, dq = robot_arm.request_force_xz(F_2, F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
+            end_angle = sum(q)
+            # else:
+            #     # not used for goals
+            #     end_pos, q, dq = robot_arm.move_joints(dq_keyboard)
+            #     # Set goal exactly to current endpoint
+            #     goal = end_pos + robot_base
             # save state
             if len(q) == 3:
                 state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], end_pos[0], end_pos[1]])

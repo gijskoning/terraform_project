@@ -161,7 +161,7 @@ if __name__ == '__main__':
             F_end = controller.control_step(robot_arm.FK_end_p(), local_goal, dt)
             # F_end[1] = 0
             if dq_keyboard is None:
-                end_pos, q, dq = robot_arm.request_endpoint_force_xz(F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
+                end_pos, q, dq = robot_arm.request_force_xz(F_end)  # this requests a endpoint force and returns pos, angle,angle_speed
             else:
                 # not used for goals
                 end_pos, q, dq = robot_arm.move_joints(dq_keyboard)

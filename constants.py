@@ -15,7 +15,10 @@ INITIAL_CONFIG_Q = np.array([np.pi*0.1, -np.pi * 0.1, -np.pi * 0.0])  # Initial 
 
 # PID CONTROLLER PARAMETERS
 Kp = 20  # proportional gain
-Ki = 0.0  # integral gain
+Ki = 0.2  # integral gain
 Kd = 0.1  # derivative gain
-goal_reached_length = 0.02
+goal_reached_length = 0.01
+goal_reached_angle = 5 * np.pi / 180
+inner_waypoint_step_size = 0.01
+
 velocity_constraint = np.array([0.01, 0.2, 0.6])*10 # rad/s
