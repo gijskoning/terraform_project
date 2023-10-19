@@ -2,9 +2,6 @@ import shelve
 
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
-
-sns.set_theme()
 from constants import velocity_constraint
 
 
@@ -14,11 +11,12 @@ def plot_dq_constraints(state):
     matrix_axs = np.array(matrix_axs).reshape((nrows, ncols))
     t = state[:, 0]
     for i in range(3):
-        matrix_axs[i,0].hlines(np.array([-velocity_constraint[i], velocity_constraint[i]]), t[0], t[-1], label=f'dq{i+1} constraint', linestyle="--", color="r")
-        matrix_axs[i,0].plot(t, state[:, 4+i], label=f'dq{i+1}')
-
-    for ax in matrix_axs.flatten():
+        ax = matrix_axs[i, 0]
+        ax.hlines(np.array([-velocity_constraint[i], velocity_constraint[i]]), t[0], t[-1], label=f'dq{i + 1} constraint', linestyle="--", color="r")
+        ax.plot(t, state[:, 4 + i], label=f'dq{i + 1}')
         ax.legend()
+        ax.set_ylabel("dq [rad/s]")
+        ax.set_xlabel("t [s]")
     plt.savefig("dq_constraints.png")
 
 
