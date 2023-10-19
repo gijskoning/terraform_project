@@ -1,3 +1,5 @@
+Install requirements with `pip install -r requirements.txt`
+
 Run `main.py` to see the robot arm follow the trajectory.  
 You can modify the trajectory following the printed instructions.
 The path is consistently followed and the velocity constraints are satisfied:
