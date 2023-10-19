@@ -1,16 +1,15 @@
 # SIMULATION PARAMETERS
-from math import pi, sin, cos
+import shelve
+from math import cos, pi, sin
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pygame
-from pygame import K_RIGHT, K_LEFT, K_SPACE, K_UP, K_DOWN, K_a, K_w, K_z, K_s, K_x, K_c, K_d, K_r
+from pygame import K_SPACE, K_r, K_w
 
-from constants import ARMS_LENGTHS, Kp, TOTAL_ARM_LENGTH, ZERO_POS_BASE, INITIAL_CONFIG_Q, CONTROL_DT, inner_waypoint_step_size, goal_reached_angle, \
-    goal_reached_length, \
-    velocity_constraint, Ki, Kd
-from dynamic_model import PIDController, RobotArm3dof, angle_diff, angle_to_pos, get_angle
-import shelve
+from constants import ARMS_LENGTHS, CONTROL_DT, INITIAL_CONFIG_Q, Kd, Ki, Kp, TOTAL_ARM_LENGTH, goal_reached_angle, goal_reached_length, \
+    inner_waypoint_step_size, velocity_constraint
+from dynamic_model import PIDController, RobotArm3dof, angle_diff, angle_to_pos
 from plot import plot_dq_constraints
 from sim_utils import length
 from user_input import gripperControl, keyboard_control
@@ -114,16 +113,25 @@ class Planner:
 
 
 if __name__ == '__main__':
+    print('INSTRUCTIONS')
+    print('Press SPACE to enable/disable robot')
+    print('Press W to save waypoints')
+    print('Press R to reset waypoints')
+    print('Click and drag to add waypoints with the required end effector direction')
+    should_run = True # False: go to plots directly
+    should_save = False # True: save state to cache
+    use_pid = False # PID works with null-space control, however not very good.
+
     waypoints = []
     if 'waypoints' in global_db:
         waypoints = global_db['waypoints']
-    robot_base = np.array([0, ZERO_POS_BASE])
+    robot_base = np.array([0., 0.])
 
     robot_arm = RobotArm3dof(ARMS_LENGTHS, velocity_constraint, reset_q=INITIAL_CONFIG_Q)
     local_endp_start = robot_arm.end_p
     q = robot_arm.q
-    controller = PIDController(kp=Kp, ki=Ki, kd=0.1)
-    controller_angle = PIDController(kp=Kp, ki=Ki, kd=0.1)
+    controller = PIDController(kp=Kp, ki=Ki, kd=Kd)
+    controller_angle = PIDController(kp=Kp*10, ki=Ki, kd=Kd)
     t = 0.0  # time
 
     state = []  # state vector
@@ -139,9 +147,9 @@ if __name__ == '__main__':
     was_click = False
     mouse_released = False
     enable_robot = True
-    should_run = True
-    should_save = True
+
     new_click_pos = None
+
     while not planner.finished and should_run:
         goal = planner.step(end_pos, end_angle)
         goal_pos = goal[:2]
@@ -185,10 +193,10 @@ if __name__ == '__main__':
         # Control
         local_goal_pos = goal_pos - robot_base
         local_goal = np.array([*local_goal_pos, goal[2]])
-        use_pid = False
         if enable_robot:
             # gets the end effector goal
-            goal_p2 = local_goal_pos - angle_to_pos(goal[2], ARMS_LENGTHS[-1])
+            end_effector_goal_angle = goal[2]
+            goal_p2 = local_goal_pos - angle_to_pos(end_effector_goal_angle, ARMS_LENGTHS[-1])
 
             if use_pid:
                 p_2, p_end = robot_arm.FK_all_points()[-2:]
@@ -201,27 +209,12 @@ if __name__ == '__main__':
                 q2s = robot_arm.IK2(goal_p2, q[0])
                 new_q3 = angle_diff(goal[2], sum(q2s))
                 new_q = np.array([q2s[0], q2s[1], new_q3])
-                # todo we want to calculate the error in velocity, and error in position
-                aq = angle_diff(new_q, q)*3.
-                # F_end = controller.control_step(p_end, local_goal_pos, dt)
-
-                # print('dq', dq, new_q, q, goal[2])
-                # dq *= 100
-                end_pos, q, dq = robot_arm.move_joints(aq)
+                dq = angle_diff(new_q, q)*1000*dt
+                end_pos, q, dq = robot_arm.move_joints(dq)
             end_angle = sum(q)
-            # else:
-            #     # not used for goals
-            #     end_pos, q, dq = robot_arm.move_joints(dq_keyboard)
-            #     # Set goal exactly to current endpoint
-            #     goal = end_pos + robot_base
-            # save state
-            if len(q) == 3:
-                state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], end_pos[0], end_pos[1]])
-            else:
-                state.append([t, q[0], q[1], dq[0], dq[1], end_pos[0], end_pos[1]])
+            state.append([t, q[0], q[1], q[2], dq[0], dq[1], dq[2], end_pos[0], end_pos[1]])
         t += dt
 
-        # try to keep it real time with the desired step time
         display.tick()
         pygame.display.flip()  # update display
         step += 1
@@ -233,5 +226,5 @@ if __name__ == '__main__':
     elif 'state' in global_db:
         state = global_db['state']
 
-    # plot_dq_constraints(state)
-    # plt.show()
+    plot_dq_constraints(state)
+    plt.show()

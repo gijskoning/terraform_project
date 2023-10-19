@@ -1,59 +1,10 @@
-"""
-Robot Dynamics and Control Assignment 2e: kinematic task-priority control
--------------------------------------------------------------------------------
-DESCRIPTION:
-4-DOF planar robot arm model with shoulder and elbow joints. The code includes
-simulation environment and visualisation of the robot.
-
-The robot is a classic position-controlled robot:
-- Measured joint angle vector q is provided each sample time.
-- Calculate the joint velocity dq in each sample time to be sent to the robot.
-
-Important variables:
-q[0] -> shoulder joint configuration
-q[1] -> first elbow joint configuration
-q[2] -> second elbow joint configuration
-q[3] -> third elbow joint configuration
-p[0] -> endpoint x position
-p[1] -> endpoint y position
-
-TASK:
-Make the robot track a given endpoint reference trajectory with the primary
-endpoint (end of the kinematic chain) by using a kinematic control (i.e., PID
-controller). This robot structure has two redundant degrees of freedom. Use
-null-space control to make the second elbow (secondary endpoint) track position
-[0,0] as a secondary task to the primary endpoint task.
--------------------------------------------------------------------------------
-
-
-INSTURCTOR: Luka Peternel
-e-mail: l.peternel@tudelft.nl
-
-"""
-
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 import pygame
 from numpy import sin, cos
 
 from dynamic_model import RobotArm3dof
 from visualization_util import DISPLAY, WINDOW_SCALE
-
-'''SIMULATION'''
-
-
-#
-# # REFERENCE TRAJETORY
-# ts = T / dt  # trajectory size
-# xt = np.linspace(-2, 2, int(ts))
-# yt1 = np.sqrt(1 - (abs(xt) - 1) ** 2)
-# yt2 = -3 * np.sqrt(1 - (abs(xt) / 2) ** 0.5)
-#
-# x = np.concatenate((xt, np.flip(xt, 0)), axis=0)
-# y = np.concatenate((yt1, np.flip(yt2, 0)), axis=0)
-#
-# pr = np.array((x / 10 + 0.0, y / 10 + 0.1))  # reference endpoint trajectory
 
 def coordinate_to_display(x, y): # WORKING
     xc, yc = DISPLAY.get_rect().center

@@ -1,10 +1,10 @@
-import numpy as np
 import math
-
-from numpy import sin, cos
 from math import pi
-from sim_utils import arm_to_polygon, check_collision
-from constants import ARMS_LENGTHS, ARM_WIDTH, CONTROL_DT
+
+import numpy as np
+from numpy import cos, sin
+
+from constants import CONTROL_DT
 
 
 def angle_diff(x, y):
@@ -21,9 +21,6 @@ class RobotArm3dof:
         else:
             self.reset_q = np.array([0.0, 0.0, 0.0])
         self.q = self.reset_q.copy()  # joint position
-        self.dq = np.zeros_like(self.q)
-        # self.dq = np.array([0.0, 0.0, 0.0])  # joint velocity
-        self.tau = np.array([0.0, 0.0, 0.0])  # joint torque
         self.lambda_coeff = 0.0001  # coefficient for robustness of singularity positions
 
         self.dt = dt
@@ -88,15 +85,12 @@ class RobotArm3dof:
         for i, _sign in enumerate([-1, 1]):
             sol_q[i, 1] = _sign * (pi - math.acos((self.l[0] ** 2 + self.l[1] ** 2 - r ** 2) / (2 * self.l[0] * self.l[1])))
             sol_q[i, 0] = math.atan2(p[1], p[0]) - _sign * math.acos((self.l[0] ** 2 - self.l[1] ** 2 + r ** 2) / (2 * self.l[0] * r))
+        # Chooses the solution which is the closest to q0 (Thanks for the Tip Sebas :). I noticed the error after you mentioned it.)
         if abs(angle_diff(sol_q[0, 0], q0)) < abs(angle_diff(sol_q[1, 0], q0)):
             return sol_q[0]
         return sol_q[1]
 
     def get_dq(self, F_2, F_end):
-        """"
-        F: float[2] the endpoint movement
-        """
-        # KINEMATIC CONTROL
         J2 = self.Jacobian2()
         J_end = self.Jacobian3()
 
@@ -122,22 +116,18 @@ class RobotArm3dof:
 
         return self.move_joints(dq)
 
-    def move_joints(self, aq):
-        """"
-        F: float[2] the endpoint movement (x,z)
-        """
-        # dq = self.constraint(dq)
-        # for i, v in enumerate(self.velocity_constraint):
-        #     if abs(dq[i]) > v:
-        #         dq /= abs(dq[i]) / v
-        self.dq += aq * self.dt
-        self.q += self.dq * self.dt
-        # cap joints
+    def move_joints(self, dq):
+        # constraint velocity
+        for i, v in enumerate(self.velocity_constraint):
+            if abs(dq[i]) > v:
+                dq /= abs(dq[i]) / v
+        self.q += dq * self.dt
+        # joints back to -pi, pi
         self.q[self.q > pi] -= 2 * pi
         self.q[self.q < -pi] += 2 * pi
         self.end_p = self.FK_end_p()
 
-        return self.end_p, self.q, self.dq
+        return self.end_p, self.q, dq
 
     def reset(self, joint_angles=None):
         if joint_angles is None:
@@ -146,54 +136,6 @@ class RobotArm3dof:
             self.q = joint_angles.copy()
 
         self.end_p = self.FK_end_p()
-
-    def constraint(self, dq):
-        dq = dq.copy()
-        for i in range(len(dq)):
-            c = self.velocity_constraint[i]
-            dq[i] = np.clip(dq[i], -c, c)
-        return dq
-
-    def old_constraint(self, dq):
-        global_pos_constraint_lb = [-10, -0.1]  # lower bound global constraint
-        p = np.zeros(2)
-        self.arm_regions = []
-
-        def create_obstacles(joint_pos_new, q):
-            obstacles = []
-            for i in range(len(dq)):
-                l = ARMS_LENGTHS[i]
-                if i > 0:
-                    p = joint_pos_new[i - 1]
-                else:
-                    p = np.zeros(2)
-                obstacles.append(arm_to_polygon(*p, np.sum(q[:i + 1]), l, ARM_WIDTH))
-            return obstacles
-
-        new_q = self.q + dq * self.dt
-        # Check for base arm to not hit the base
-        if new_q[0] < 0.1 * np.pi:
-            dq[0] = 0
-        # Other checks on all arms
-        for i in range(len(dq)):
-            new_q = self.q + dq * self.dt
-            joint_positions_new = self.FK_all_points(new_q)
-
-            # Global constraint check
-            if np.any(joint_positions_new < global_pos_constraint_lb):
-                dq[i] = 0
-            # Check collision with itself
-            if i > 0:
-                p = joint_positions_new[i - 1].copy()
-            if not check_collision(create_obstacles(joint_positions_new, new_q)):
-                dq[i] = 0
-
-            # for visualization
-            l = ARMS_LENGTHS[i]
-            pol = arm_to_polygon(*p, np.sum(self.q[:i + 1]), l, ARM_WIDTH)
-            self.arm_regions.append(pol)
-
-        return dq
 
 
 def angle_to_pos(angle, length=1):
@@ -210,42 +152,19 @@ class PIDController:
         self.i = 0  # loop counter
         self.se = 0.0  # integrated error
         self.state = []  # state vector
-        self.last_p_end = np.zeros(dims)
+        self.last_value = np.zeros(dims)
         self.se = 0
         self.Kp = kp
         self.Ki = ki
         self.Kd = kd
 
-    def control_step(self, p_end, goal, dt):
-        pos_goal = goal[:2]
-        # KINEMATIC CONTROL
-        error = pos_goal - p_end
-        d_p = p_end - self.last_p_end
+    def control_step(self, current, goal, dt):
+        error = goal - current
+        d_p = current - self.last_value
 
         F_end = self.Kp * error + self.Ki * self.se * dt - self.Kd * d_p / dt
 
         self.se += error
-        self.last_p_end = p_end
+        self.last_value = current
 
         return F_end
-
-    # def control_step_angle(self, angle, goal_angle, dt):
-    #     diff_angle = goal_angle - angle
-    #     if diff_angle > pi:
-    #         diff_angle -= 2 * pi
-    #     if diff_angle < -pi:
-    #         diff_angle += 2 * pi
-    #     error = diff_angle
-    #     d_p = angle - self.last_p_end
-    #
-    #     F_end = self.Kp * error + self.Ki * self.se * dt - self.Kd * d_p / dt
-    #
-    #     self.se += error
-    #     self.last_p_end = angle
-    #
-    #     return F_end
-
-
-if __name__ == '__main__':
-    model = RobotArm3dof(l=ARMS_LENGTHS)
-    controller = PIDController()
